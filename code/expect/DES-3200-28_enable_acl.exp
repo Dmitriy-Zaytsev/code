@@ -1,0 +1,73 @@
+#!/usr/bin/expect
+set ip_old [ lindex $argv 0 ]
+set ip_new [ lindex $argv 1 ]
+set mask_new [ lindex $argv 2 ]
+set gw_new [ lindex $argv 3 ]
+set username [ lindex $argv 4 ]
+set password [ lindex $argv 5 ]
+set manvlan [ lindex $argv 6]
+set timeout 1
+set time 10
+set match_max 700000
+set send_human {0.01 .00001 1 .000001 5}
+
+spawn telnet $ip_old
+set u 0
+set p 0
+set timeout 0
+while 1 {
+expect {
+"Login:.*" {send "$username\r";incr u +1}
+"login:" {send "$username\r";incr u +1}
+"username:" {send "$username\r";incr u +1}
+"Username:" {send "$username\r";incr u +1}
+"UserName:" {send "$username\r";incr u +1}
+"Password:" {send "$password\r";incr p +1}
+"password:" {send "$password\r";incr p +1}
+"#" {send "\r";break}
+">" {send "enable\r"; expect "Password" {send "$password\r";break}}
+}
+if { "$u" == "2" && "$p" == "2" } {set username sadmin; set password "tl;rjht"}
+if { "$u" == "5" && "$p" == "5" } {exit 1}
+}
+set i 0
+set timeout 1
+while 1 {expect "#" {send -h "term len 0\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+unset expect_out(buffer)
+while 1 {expect "#" {send -h "show ip interface\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+#expect "#" { set out $expect_out(buffer);send "\r"}
+#send_user "\n\n\n\n\n$out\n\n\n\n"
+#set ret [regexp -nocase {VLAN ([0-9]*) is.*Up} $out str manvlan]
+#if { "$ret" == "0" } {exit 40}
+send "\r"
+while 1 {expect "#" {send -h "configure\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "interface vlan $manvlan\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "ip address $ip_new $mask_new default-gateway $gw_new\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+send "exit\r"
+
+spawn telnet $ip_new
+set u 0
+set p 0
+set timeout 0
+while 1 {
+expect {
+"Login:.*" {send "$username\r";incr u +1}
+"login:" {send "$username\r";incr u +1}
+"username:" {send "$username\r";incr u +1}
+"Username:" {send "$username\r";incr u +1}
+"UserName:" {send "$username\r";incr u +1}
+"Password:" {send "$password\r";incr p +1}
+"password:" {send "$password\r";incr p +1}
+"#" {send "\r";break}
+">" {send "enable\r"; expect "Password" {send "$password\r";break}}
+}
+if { "$u" == "2" && "$p" == "2" } {set username rabbit; set password rabbit}
+if { "$u" == "5" && "$p" == "5" } {exit 1}
+}
+
+set timeout 1
+while 1 {expect "#" {send -h "cop run st\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "configurat" {send -h "\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "exit\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+exit 0
+expect "sdfsdf"

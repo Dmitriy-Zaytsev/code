@@ -1,0 +1,71 @@
+#!/usr/bin/expect
+#log_user 0
+set ip [ lindex $argv 0 ]
+set firmware [ lindex $argv 1 ]
+set port [ lindex $argv 2 ]
+set server 192.168.33.13
+
+set username dszajtse
+set password Y5y4y3y2y1
+#set username dima.z
+#set password pfqwtd
+
+set i 0
+set timeout 0
+set time 120
+set match_max 99999
+set send_human {0.01 .00001 1 .000001 5}
+
+spawn telnet $ip
+set u 0
+set p 0
+set timeout 0
+while 1 {
+expect {
+"Login:.*" {send "$username\r";incr u +1}
+"login:" {send "$username\r";incr u +1}
+"username:" {send "$username\r";incr u +1}
+"Username:" {send "$username\r";incr u +1}
+"UserName:" {send "$username\r";incr u +1}
+"Password:" {send "$password\r";incr p +1}
+"password:" {send "$password\r";incr p +1}
+"#" {send "\r";break}
+">" {send "enable\r"; expect "Password" {send "$password\r";break}}
+}
+if { "$u" == "1" && "$p" == "1" } {set username sadmin; set password ghbitktw}
+if { "$u" == "2" && "$p" == "2" } {set username rabbit; set password rabbit}
+if { "$u" == "5" && "$p" == "5" } {exit 10}
+}
+set timeout 2
+send "\n"
+set firmware_old null
+while 1 {expect "#" {send -h "dir\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+expect "#"
+expect "sdfsdfsdf"
+expect *
+set out $expect_out(buffer)
+#send_user "\nBUFFER:\n$out\n:BUFFER\n"
+set ret [regexp -nocase {([[:alnum:][:blank:][:punct:]]*) *OpCode *N [[:alnum:][:blank:]]*} $out str firmware_old]
+#send_user "\nFIRMWARE:\n$firmware_old\n:FIRMWARE\n"
+send "\n"
+
+while 1 {expect "#" {send -h "cop run sta\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "conf" {send -h "\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "delete file name $firmware_old\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "delete non-active opcode\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "*" {send -h "y\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "copy ftp file\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect ":" {send -h "$server\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect ":" {send -h "anonymous\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect ":" {send -h "anonymous\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "2. opcode" {send -h "2\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect ":" {send -h "$firmware\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect ":" {send -h "$firmware\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "uccess" {send -h "configure\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "boot system opcode:$firmware\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "exit\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "exit\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+
+send "exit\n"
+send "logout\n"
+exit 0

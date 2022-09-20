@@ -1,0 +1,9 @@
+#!/usr/bin/expect
+set ip [ lindex $argv 0 ]
+set timeout 2
+set try 3
+set ping no
+spawn /bin/ping $ip
+while { "$try" != "0" } {set try [expr $try - 1];send_user "\nОсталось попыток $try.\n";expect "ttl=*" {expect "ttl=*" {expect "ttl=*";spawn /bin/pidof -s ping; set ping yes;break}}}
+if { "$ping" != "yes" } {send_user "Нет icmp ответов.\n";exit}
+send_user "icmp ответ получен.\n"

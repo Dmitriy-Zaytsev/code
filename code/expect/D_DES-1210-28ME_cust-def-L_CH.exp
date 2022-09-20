@@ -1,0 +1,39 @@
+#!/usr/bin/expect
+set username rabbit
+set password rabbit
+set ip [ lindex $argv 0 ]
+set timeout 1
+set send_human {.1 .1 .99 .2 10}
+spawn minicom -D /dev/ttyS0
+
+while 1 {
+expect "Username"  {send -h "$username\n"}
+expect  "Password" {send -h "$password\n"}
+expect ":5#" {break}
+send "\n"
+}
+send "\n"
+while 1 { expect "#" {send -h "   disable stp\n";break}}
+while 1 { expect "Success" {send -h "\n";break}}
+while 1 { expect "#" {send -h "   conf ports all stat enable\n";break}}
+while 1 { expect "Success" {send -h "\n";break}}
+while 1 { expect "#" {send -h "   delete access_profile all\n";break}}
+while 1 { expect "Success" {send -h "\n";break}}
+while 1 { expect "#" {send -h "   config vlan vlanid 10 add tagged 1\n";break}}
+while 1 { expect "#" {send -h "   config ipif System vlan mgmt\n";break}}
+expect "Success"
+send "\n"
+while 1 { expect "#" {send -h "   config ipif System vlan Management\n";break}}
+expect "Success"
+send "\n"
+while 1 { expect "#" {send -h "   config ipif System ipaddress 172.19.1.251/21 state enable\n";break}}
+while 1 { expect "Success" {send -h "\n";break}}
+while 1 { expect "#" {send -h "   create iproute default 172.19.0.1\n";break}}
+while 1 { expect "Success" {send -h "\n";break}}
+while 1 { expect "#" {send -h "   downlo cfg_fromFTP ftp:anonymous:anonymous@192.168.33.13:21/D_DES-1210-28ME/ default_DLink1210-28.cfg star\n";break}}
+while 1 { expect "Done" {send -h "\n";break}}
+while 1 { expect "#" {send -h "       confi configu config_id 1 boot_up\n";break}}
+while 1 { expect "Success" {send -h "\n";break}}
+while 1 { expect "#" {send -h "       reboot\n";break}}
+while 1 { expect "system reboot" {send -h "y";break}}
+expect "sdfsdf"

@@ -1,0 +1,75 @@
+#!/usr/bin/expect
+#Настройка на default config.
+set username rabbit
+set password rabbit
+set interf 7
+set ip_addr 172.19.1.251
+set ip_serv 192.168.33.13
+set path_opcode D_DES-3200-10/DES3200R_4.37.B014.had
+set path_config D_DES-3200-10/D_DES-3200-10_def.cfg
+
+
+spawn minicom -b 115200 -D /dev/ttyS0
+set timeout 1
+send_user "\n"
+while 1 {
+#exec /bin/ip neigh flush $ip_addr
+while 1 {
+ send_user \nLOGIN_1\n
+ expect "User" { send "$username\n"}
+ expect "Pass" { send "$password\n"}
+ expect "admin" { send "\n"; break}
+ send "\n"
+ expect "admin" { send "\n";break}
+}
+
+while 1 { expect "admin" { send "disable stp\n"; break}}
+while 1 { expect "admin" { send "create vlan vlanid 10\n"; break}}
+while 1 { expect "admin" { send "config vlan vlanid 10 add tagged $interf\n"; break}}
+while 1 { expect "admin" { send "config ipif System ipaddress $ip_addr/21 vlan VLAN10\n"; break}}
+while 1 { expect "admin" { send "create iproute default 172.19.0.1\n"; break}}
+sleep 10
+send "\n"
+while 1 { expect "admin" { send "download firmware_fromFTP $ip_serv src_file $path_opcode\n"; break}}
+while 1 { expect "User" { send "\n"; break}}
+while 1 { expect "Pass" { send "\n"; break}}
+while 1 { expect "Success" { send "\n"; break}}
+while 1 { expect "admin" { send "save\n"; break}}
+while 1 { expect "Done" { send "reboot\n"; break}}
+while 1 { expect "admin" { send "y\n"; break}}
+while 1 { expect "Press any key to login" { send "\n"; break}}
+
+
+while 1 {
+ send_user \nLOGIN_2\n
+ expect "User" { send "$username\n"}
+ expect "Pass" { send "$password\n"}
+ expect "admin" {break}
+}
+
+sleep 8
+send "\n"
+
+while 1 { expect "admin" { send "download cfg_fromFTP $ip_serv src_file $path_config\n"; break}}
+while 1 { expect "User" { send "\n"; break}}
+while 1 { expect "Pass" { send "\n"; break}}
+while 1 { expect "End of configuration file for" { send "save\n"; break}}
+while 1 { expect "Done"  {send "logout\n"; break}}
+
+
+#modprobe pcspkr - nuzno zagruzit neobhodimiy moduli,esli oni v chern spiske.
+#exec /usr/bin/beep -f 1000 -r 4
+
+send_user "\nДля повтора нажмите Enter\nДля отмены n\n"
+
+exec notify-send -u critical "Коммутатор прошился" -t 0 -i /usr/share/dia/shapes/Cisco/workgroup_switch_voice-enabled.png
+
+while 1 {
+expect_user -re "(.*)\n" {set key $expect_out(1,string); break}
+}
+
+if {"$key" == "n"} { break}
+send_user "\nStrart.\n"
+
+while 1 { expect "Press any key to login" { send "\n"; break}}
+}

@@ -1,0 +1,84 @@
+#!/usr/bin/expect
+set ip_old [ lindex $argv 0 ]
+set ip_new [ lindex $argv 1 ]
+set mask_new [ lindex $argv 2 ]
+set gw_new [ lindex $argv 3 ]
+#set username [ lindex $argv 4 ]
+#set password [ lindex $argv 5 ]
+###set manvlan [ lindex $argv 6]
+set username sa0405nch
+set password dwGynns5vD
+
+set timeout 1
+set time 30
+set match_max 700000
+set send_human {0.01 .00001 1 .000001 5}
+set manvlannew 3
+
+spawn telnet $ip_old
+set i 0
+set u 0
+set p 0
+set timeout 0
+while 1 {
+expect {
+"Login:.*" {send "$username\r";incr u +1}
+"login:" {send "$username\r";incr u +1}
+"username:" {send "$username\r";incr u +1}
+"Username:" {send "$username\r";incr u +1}
+"UserName:" {send "$username\r";incr u +1}
+"Password:" {send "$password\r";incr p +1}
+"password:" {send "$password\r";incr p +1}
+"#" {send "\r";break}
+">" {send "enable\r"; expect "Password" {send "$password\r";break}}
+}
+if { "$u" == "2" && "$p" == "2" } {set username sadmin; set password "ghbitktw"}
+if { "$u" == "5" && "$p" == "5" } {exit 10}
+if { "$u" == "10" } {exit 10}
+}
+
+set timeout 1
+
+
+while 1 {expect "#" {send -h "term len 0\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "show system\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+set timeout 0
+while 1 {
+expect {
+"3528" {set port "25-28";break}
+"3552" {set port "49-52";break}
+"3510-28" {set port "25-28";break}
+"3510-52" {set port "49-52";break}
+"3510" {set port "9-10";break}
+}
+incr i +1
+if { "$i" == "20000" } {exit 10}
+}
+
+set timeout 1
+set i 0
+unset expect_out(buffer)
+while 1 {expect "#" {send -h "show ip interface\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" { set out $expect_out(buffer);send "\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+set out [regsub -all {VLAN 1 } $out {\1 }]
+set ret [regexp -nocase {VLAN ([0-9]*)} $out str manvlan]
+if { "$ret" == "0" } {
+while 1 {expect "#" {send -h "show running\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+set ret [regexp -nocase {interface vlan ([0-9]*)} $out str manvlan]
+}
+if { "$ret" == "0" } {exit 40}
+#send_user "\n\n\n$manvlan\n\n"
+send "\r"
+while 1 {expect "#" {send -h "configure\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "vlan database\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "vlan $manvlannew m e s a\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "exit\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "interface ethernet 1/$port\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "switchport allowed vlan add $manvlannew tagged\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "exit\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "reload in hour 4\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "y" {send -h "y\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "interface vlan $manvlannew\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "ip address $ip_new $mask_new default-gateway $gw_new\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+expect "sdfsdfsfd"
+send "exit\r"

@@ -1,0 +1,21 @@
+#!/usr/bin/expect
+set username dima.z
+set password pfqwtd
+set ip [ lindex $argv 0 ]
+set timeout 1
+
+spawn /usr/bin/telnet $ip
+while 1 {
+expect "Username"  {send "$username\n"}
+expect  "Password" {send "$password\n"}
+expect ":5#" {break}
+send "\n"
+}
+send "\n"
+expect "#"
+while 1 { expect "#" {send "config stp version mstp\n";break}}
+while 1 { expect "#" {send "config stp mst_config_id name Chelny-GES revision_level 4\n";break}}
+while 1 { expect "#" {send "enable stp\n";break}}
+while 1 { expect "#" {send "save\n";break}}
+while 1 { expect "#" {send "logout\n";break}}
+

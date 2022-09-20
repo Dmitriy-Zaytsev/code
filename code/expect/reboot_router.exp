@@ -1,0 +1,22 @@
+#!/usr/bin/expect
+set timeout 1
+#ip = нулевая позиция в строке аргументов, т.е. 1ый аргумент.
+spawn ssh root@[ lindex $argv 0 ] 
+ while 1 {expect "password:" {break}}
+send "root\n"
+ while 1 {expect "#" {break}}
+send "cat /proc/uptime\n"
+ expect "#"
+set uptime [ lindex $expect_out(buffer) 3 ]
+ send_user "UPTIME $uptime sec\n"
+ #15 сек время которое должно пройти как минимум после загрузки роутера.
+set time [expr 15 - $uptime ]
+#Если 15 сек прошло
+if { $time <= 0 } {
+send "reboot\n"
+exec /bin/date "+%d/%m/%y %H:%M:%S:%N" >> /home/dima/reboot_router.txt
+} else {
+send_user "Ждём $time сек. роутер недавно загрузился.\n" 
+sleep $time} 
+#Что бы на экране видеть что выодиться
+ expect "sdfsdf"

@@ -1,0 +1,157 @@
+#!/usr/bin/expect
+#Настройка на default config.
+set username admin
+set password admin
+set interf 1/1
+set ip_addr 172.19.1.251
+set ip_serv 172.19.1.13
+set path_opcode E_ECS3510-52T/ecs3510_28t_upgarde_loader.bix
+set opcode [exec /bin/echo $path_opcode | /bin/sed "s/.*\\///g"]
+set path_loader E_ECS3510-52T/ecs3510_28t_ld_V1.0.2.3.bix
+set path_opcode2 E_ECS3510-52T/ecs3510_28t_v1.5.1.4.bix
+set opcode2 [exec /bin/echo $path_opcode2 | /bin/sed "s/.*\\///g"]
+set path_config E_ECS3510-52T/E_ECS3510-52T_CH.cfg
+
+spawn minicom -b 115200 -D /dev/ttyS1
+set timeout 1
+while 1 {
+#exec /bin/ip neigh flush $ip_addr
+while 1 {
+ expect "Username:" { send "$username\n"}
+ expect "Password:" { send "$password\n"}
+ expect "#" {break}
+ send "\n" 
+}
+
+set timeout 3
+
+send "config\n"
+ while 1 {expect "(config)#" {break}}
+send "inter eth $interf\n"
+ while 1 {expect "(config-if)#" {break}}
+send "switch mode trun\n"
+ while 1 {expect "(config-if)#" {break}}
+send "switch all vlan add 10 tag\n"
+ while 1 {expect "(config-if)#" {break}}
+send "interface vlan 10\n"
+ while 1 {expect "(config-if)#" {break}}
+send "ip add $ip_addr 255.255.248.0 default 172.19.0.1\n"
+ while 1 {expect "(config-if)#" {break}}
+send "exit\n"
+ while 1 {expect "(config)#" {break}}
+send "exit\n"
+ while 1 {expect "#" {break}}
+send "cop run start\n"
+send "\n"
+
+ while 1 {expect "#" {break}}
+send "cop ftp file\n"
+ while 1 {expect "FTP server" {break}}
+send "$ip_serv\n"
+ while 1 {expect "User" {break}}
+send "\n"
+ while 1 {expect "Password" {break}}
+send "\n"
+ while 1 {expect "2. opcode" {break}}
+send "2\n"
+ while 1 {expect "Source file name:" {break}}
+send "$path_opcode\n"
+ while 1 {expect "Destination file name:" {break}}
+send "$opcode\n"
+ while 1 {expect "Success" {break}}
+send "configure\n"
+ while 1 {expect "(config)#" {break}}
+send "boot system opcode:ecs3510_28t_upgarde_loader.bix\n"
+ while 1 {expect "(config)#" {break}}
+send "exit\n"
+ while 1 {expect "#" {break}}
+send "reload\n"
+ while 1 {expect "Continue" {break}}
+send "y\n"
+
+set timeout 1
+while 1 {expect "Note" {break}}
+send "\n\n"
+while 1 {expect "User Access Verification" {break}}
+while 1 {
+ expect "Username:" { send "$username\n"}
+ expect "Password:" { send "$password\n"}
+ expect "#" {break}
+ send "\n"
+}
+
+set timeout 1
+#Иначе след.ком. не дописывается до конца.
+sleep 2
+
+send "delete file name ecs3510_1.2.4.2.bix\n"
+sleep 2
+send "\n"
+ while 1 {expect "#" {break}}
+send "\n"
+send "cop ftp file\n"
+ while 1 {expect "FTP server" {break}}
+send "$ip_serv\n"
+ while 1 {expect "User" {break}}
+send "\n"
+ while 1 {expect "Password" {break}}
+send "\n"
+ while 1 {expect "3. loader" {break}}
+send "3\n"
+ while 1 {expect "upgrade" {break}}
+send "y\n"
+ while 1 {expect "Source" {break}}
+sleep 2
+send "$path_loader\n"
+ while 1 {expect "Success" {break}}
+
+
+send "cop ftp file\n"
+ while 1 {expect "FTP server" {break}}
+send "$ip_serv\n"
+ while 1 {expect "User" {break}}
+send "\n"
+ while 1 {expect "Password" {break}}
+send "\n"
+ while 1 {expect "2. opcode" {break}}
+send "2\n"
+ while 1 {expect "Source" {break}}
+send "$path_opcode2\n"
+ while 1 {expect "Destination" {break}}
+send "$opcode2\n"
+ while 1 {expect "Success" {break}}
+send "configure\n"
+ while 1 {expect "(config)#" {break}}
+send "boot system opcode:ecs3510_28t_v1.5.1.4.bix\n"
+ while 1 {expect "(config)#" {break}}
+send "exit\n"
+ while 1 {expect "#" {break}}
+
+
+send "cop ftp start\n"
+ while 1 {expect "FTP server" {break}}
+send "$ip_serv\n"
+ while 1 {expect "User" {break}}
+send "\n"
+ while 1 {expect "Password" {break}}
+send "\n"
+ while 1 {expect "Source" {break}}
+send "$path_config\n"
+ while 1 {expect "Startup" {break}}
+send "\n"
+ while 1 {expect "Success" {break}}
+send "reload\n"
+ while 1 {expect "Continue" {break}}
+send "y\n"
+
+#modprobe pcspkr - nuzno zagruzit neobhodimiy moduli,esli oni v chern spiske.
+#exec /usr/bin/beep -f 1000 -r 4
+send_user "\nДля повтора нажмите Enter\nДля отмены n\n"
+
+while 1 {
+expect_user -re "(.*)\n" {set key $expect_out(1,string); break}
+}
+if {"$key" == "n"} { break}
+send_user "\nStrart.\n"
+
+}

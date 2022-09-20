@@ -1,0 +1,49 @@
+#!/usr/bin/expect
+#DLINK1100-08 с настроенного в default.
+#set ip_pc 192.168.33.13
+set ip_pc 10.90.90.13
+set ip_sw 10.90.90.90
+set path_cfg D_DGS-1100-08/D_DGS-1100-08.bin
+
+ 
+while 1 {
+set arp [exec ip neig show $ip_sw | sed "/.*FAILED.*/d"]
+if { $arp != "" } { exec /bin/ip neigh del $ip_sw dev eth1}
+
+while 1 {
+sleep 1
+spawn /bin/ping $ip_sw -c 1 -W 1
+expect "1 received" {break}
+}
+spawn telnet $ip_sw
+set timeout 1
+ while 1 {expect "Username:" {break}}
+send "admin\n"
+ while 1 {expect "Password:" {break}}
+#send "rabbit\n"
+send "admin\n"
+ while 1 {expect "admin#" {break}}
+send "download cfg_fromTFTP $ip_pc src_file $path_cfg\n"
+ while 1 {expect "cfg success" {break}}
+send "exit\n"
+
+set arp [exec ip neig show 172.19.5.254 | sed "/.*FAILED.*/d"]
+if { $arp != "" } { exec /bin/ip neigh del 172.19.5.254 dev eth1.10}
+
+while 1 {
+ sleep 1
+ spawn /bin/ping 172.19.5.254 -c 1 -W 1
+ expect "1 received" {break}
+}
+
+send_user "\n..........................\nSUCCESS\n..........................\n"
+
+#spawn /usr/bin/mpg123 /usr/share/sounds/CS_gogogo.mp3 
+
+while 1 {
+expect_user -re "(.*)\n" {set key $expect_out(1,string); break}
+}
+if {"$key" == "n"} { break}
+send_user "\nStrart.\n"
+
+}

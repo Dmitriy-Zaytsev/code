@@ -1,0 +1,85 @@
+#!/usr/bin/expect
+#НУЖНО ЗАПУСКАТЬ С ПРАВАМИ SU Т.К. ip neigh flush.
+set send_human {.1 .3 1 .05 2}
+set send_slow {1.1}
+set username sadmin
+set password "tl;rjht"
+set interf 1/1
+set ip_addr 172.19.1.251
+set ip_serv 192.168.33.13
+
+set path_loader E_ES3552M/ES3528_52M_diag_V1.2.1.2.bix
+set loader [exec /bin/echo $path_loader | /bin/sed "s/.*\\///g"]
+
+set path_opcode E_ES3552M/ES3528_52M_opcode_V1.4.20.11.bix
+set opcode [exec /bin/echo $path_opcode | /bin/sed "s/.*\\///g"]
+
+set path_config E_ES3528M/E_ES3528M.cfg
+
+
+spawn minicom -D /dev/ttyS1 -b 9600
+set timeout 1
+while 1 {
+exec /bin/ip neigh flush $ip_addr
+send  -h "\n"
+while 1 {
+ expect "Username:" { send  -h "$username\n"}
+ expect "Password:" { send  -h "$password\n"}
+ expect "ES3528M" {break}
+ expect "#" {break}
+# send  -h "\n" 
+}
+send  -h "\n"
+while 1 {expect "#" { send  -h "delete non-active opcode\n"; break}}
+while 1 {expect "non-active" { send  -h "y\n"; break}}
+while 1 {expect "#" { send  -h "configure\n"; break}}
+while 1 {expect "#" { send  -h "no spanning-tree\n"; break}}
+while 1 {expect "#" { send  -h "inter eth 1/1\n"; break}}
+while 1 {expect "#" { send  -h "no mac access-group PPPOE_CST_IN in\n"; break}}
+while 1 {expect "#" { send  -h "no shut\n"; break}}
+while 1 {expect "#" { send  -h "switchport mode tr\n"; break}}
+while 1 {expect "#" { send  -h "switchport allowed vlan add 10 tagged\n"; break}}
+while 1 {expect "#" { send  -h "inter vlan 10\n"; break}}
+while 1 {expect "#" { send  -h "ip add 172.19.1.251 255.255.248.0 default-gateway 172.19.0.1\n"; break}}
+while 1 {expect "#" { send  -h "exit\n"; break}}
+while 1 {expect "#" { send  -h "exit\n"; break}}
+while 1 {expect "#" { send  -h "cop run start\n"; break}}
+while 1 {expect "name" { send  -h "\n"; break}}
+
+while 1 {expect "Success" { send  -h "cop ftp file\n"; break}}
+while 1 {expect "server" { send  -h "$ip_serv\n"; break}}
+while 1 {expect "User" { send  -h "\n"; break}}
+while 1 {expect "Pass" { send  -h "\n"; break}}
+while 1 {expect "4. diag" { send  -h "4\n"; break}}
+while 1 {expect "Source" { send  -h "$path_loader\n"; break}}
+while 1 {expect "Destinat" { send  -h "$loader\n"; break}}
+
+while 1 {expect "#" { send  -h "cop ftp file\n"; break}}
+while 1 {expect "server" { send  -h "$ip_serv\n"; break}}
+while 1 {expect "User" { send  -h "\n"; break}}
+while 1 {expect "Pass" { send  -h "\n"; break}}
+while 1 {expect "2. opcode" { send  -h "2\n"; break}}
+while 1 {expect "Source" { send  -h "$path_opcode\n"; break}}
+while 1 {expect "Destinat" { send  -h "$opcode\n"; break}}
+
+while 1 {expect "#" { send  -h "cop ftp start\n"; break}}
+while 1 {expect "server" { send  -h "$ip_serv\n"; break}}
+while 1 {expect "User" { send  -h "\n"; break}}
+while 1 {expect "Pass" { send  -h "\n"; break}}
+while 1 {expect "file" { send  -h "$path_config\n"; break}}
+while 1 {expect "name" { send  -h "\n"; break}}
+while 1 {expect "Success" { send  -h "reload\n"; break}}
+while 1 {expect "Continue" { send  -h "y\n"; break}}
+
+#modprobe pcspkr - nuzno zagruzit neobhodimiy moduli,esli oni v chern spiske.
+#exec /usr/bin/beep -f 1000 -r 4
+send_user "\nДля повтора нажмите Enter\nДля отмены n\n"
+
+while 1 {
+expect_user -re "(.*)\n" {set key $expect_out(1,string); break}
+}
+if {"$key" == "n"} { break}
+send_user "\nStrart.\n"
+
+}
+

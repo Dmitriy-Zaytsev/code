@@ -1,0 +1,56 @@
+#!/usr/bin/expect
+set ip [ lindex $argv 0 ]
+set username [ lindex $argv 1 ]
+set password [ lindex $argv 2 ]
+set rw_community [ lindex $argv 3 ]
+set version_snmp [ lindex $argv 4 ]
+set timeout 1
+set time 10
+set u 0
+set p 0
+set send_human {0.01 .00001 1 .000001 5}
+spawn telnet $ip
+while 1 {
+expect {
+"Login:.*" {send "$username\r";incr u +1}
+"login:" {send "$username\r";incr u +1}
+"username:" {send "$username\r";incr u +1}
+"Username:" {send "$username\r";incr u +1}
+"UserName:" {send "$username\r";incr u +1}
+"Password:" {send "$password\r";incr p +1}
+"password:" {send "$password\r";incr p +1}
+"#" {send "\r";break}
+">" {send "enable\r"; expect "Password" {send "$password\r";break}}
+}
+if { "$u" == "2" && "$p" == "2" } {set username rabbit; set password rabbit}
+if { "$u" == "5" && "$p" == "5" } {exit 1}
+}
+
+set i 0
+while 1 {expect "#" {send -h "disable clipaging\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "show switch\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+set timeout 0
+while 1 {
+expect {
+"1210-28" {set port "25-28";break}
+"1210-10" {set port "9-10";break}
+"3200-10" {set port "9-10";break}
+"3200-28" {set port "25-28";break}
+}
+incr i +1
+if { "$i" == "200000" } {exit 10}
+}
+
+set timeout 1
+set i 0
+
+while 1 {expect "#" {send -h "disable trust\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "delete vlan vlanid 3\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "create vlan vlanid 3\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "config vlan vlanid 3 name mgmt_ou\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "config vlan vlanid 3 add tagged $port\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "enable web\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "logout\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+exit 0
+expect "sdfsdf"
+

@@ -1,0 +1,100 @@
+#!/usr/bin/expect
+#error
+#20/1 - error login
+#40 - error detect model
+#30 - error timeout
+#60 - error connect ftp
+#70 - error command
+
+set swip  [ lindex $argv 0 ]
+set username "sa0405nch"
+set password "dwGynns5vD"
+set firmware "D_DES-1210-28ME/ firmware.bin"
+set ftpip 192.168.33.6
+set send_human {0.05 .0000001 1 .000001 5}
+
+set timeout 1
+set time 15
+set i 0
+set mod 0;set rev 0;set fir 0
+
+spawn telnet $swip
+
+set u 0
+set p 0
+set i 0
+set mod 0
+set timeout 1
+while 1 {expect "DES-1210-28/ME" {set mod 1;break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +2}
+if { "$mod" == "0" } {send_user "error model\n";exit}
+set timeout 0
+while 1 {
+expect {
+"Login:.*" {send "$username\r";incr u +1}
+"login:" {send "$username\r";incr u +1}
+"username:" {send "$username\r";incr u +1}
+"Username:" {send "$username\r";incr u +1}
+"UserName:" {send "$username\r";incr u +1}
+"Password:" {send "$password\r";incr p +1}
+"password:" {send "$password\r";incr p +1}
+"#" {break}
+">" {send "enable\r"; expect "Password" {send "$password\r";break}}
+}
+if { "$u" == "2" && "$p" == "2" } {set username rabbit; set password rabbit}
+if { "$u" == "5" || "$p" == "5" } {exit 20}
+}
+set timeout 1
+send "\r"
+while 1 {expect "#" {send -h "       disable clipaging\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "uccess" {send -h "       show switch\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {
+expect {
+"6.10.B036" {set fir 1}
+"Hardware*B2" {set rev 1}
+}
+if { "$i" >= "$time" } { set i 0;exit 40 }
+if { "$rev" == "1" && "$fir" == "1" } {
+send "logout\r";exit 0
+} else {
+break
+}
+incr i +1
+}
+
+set i 0
+send "\r"
+send_user "\n\n\n\n FIR:$fir"
+set timeout 1
+if { "$fir" == "0" } {
+#dlink pri ping menjet arp/management_vlan.
+###while 1 {expect "#" {send -h "      ping 192.168.33.6 times 2\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+send "\r"
+set fail 1
+set f 0
+while { "$fail" == "1" } {
+incr f +1
+if { "$f" == "15" } {exit 70}
+expect "#" {send -h "       download firmware_fromFTP ftp:anonymous:anonymous@$ftpip:21/$firmware\r"}
+if { "$i" >= "$time" } { set i 0;exit 30}
+incr i +1
+set timeout 60
+while 1 {
+expect {
+"Success" {sleep 6;set fail 0;break}
+"fail" {exit 60}
+"Available commands" {set fail 1;break}
+"Next possible completions" {set fail 1;break}
+}
+}
+if { "$i" >= "$time" } { set i 0;exit 30};incr i +1
+}
+send "\r"
+while 1 {expect "#" {send -h "       reboot\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+set timeout 1
+while 1 {expect "reboot" {send -h "y";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+} else {
+send "\r"
+while 1 {expect "#" {send -h "       logout\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+}
+expect "sdfsdfsdf"
+exit 0

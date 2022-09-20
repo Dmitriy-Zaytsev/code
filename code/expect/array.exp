@@ -1,0 +1,30 @@
+#!/usr/bin/expect 
+set username u
+set password p
+
+array set usernamepassword {
+    log1 pass1
+    log2 pass2
+    log3 pass3
+}
+
+
+puts {$usernamepassword}
+
+#proc changeusername {} {
+#global usernamepassword
+#foreach n [array names usernamepassword] {
+#    puts "$n is $usernamepassword($n)"
+#    return [list $n $usernamepassword($n)]
+#}
+#}
+
+#set result [changeusername]
+#set result [changeusername]
+
+#changeusername
+#puts "result = {$result}"
+#changeusername
+#puts "result = {$result}"
+
+expect *

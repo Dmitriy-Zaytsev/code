@@ -1,0 +1,207 @@
+#!/usr/bin/expect
+#
+#
+#
+if {[llength $argv] != "5"} {
+send_user "$argv0 ip_ocet3-4/mask mgs address sw_num vlan_pppoe\n$argv0 50.60/24 12 56_23_6p 1 415\n";exit 2}
+
+
+set firmware 0
+
+set ftpuser anonymous
+set ftppassword anonymous
+set ip_addr_def 172.19.7.254
+set interf 1/1
+set interfall 1/1-28
+set interfsubscriber 1/1-24
+
+set ip_addr_mask 10.218.[ lindex $argv 0 ]
+set mgs [ lindex $argv 1 ]
+set address [ lindex $argv 2 ]
+set swnum [ lindex $argv 3 ]
+set vlanpppoe [ lindex $argv 4 ]
+set hostname nch-mu$mgs\_$address\-acsw$swnum
+###nch-mu12_56_23_6p-acsw1
+
+set ip_addr [ exec /usr/bin/ipcalc -n -b $ip_addr_mask | /bin/grep -i Address | /usr/bin/cut -d ":" -f 2 | sed "s/ //g"]
+set ip_gw [ exec /usr/bin/ipcalc -n -b $ip_addr_mask | /bin/grep -i HostMin | /usr/bin/cut -d ":" -f 2 | sed "s/ //g"]
+set ip_mask [ exec /usr/bin/ipcalc -n -b $ip_addr_mask | /bin/grep -i Netmask | /usr/bin/cut -d ":" -f 2 | sed "s/ //g" | cut -d "=" -f 1]
+
+set ip_serv 192.168.33.6
+set ftpdir E_ECS3510-28T
+set path_opcode $ftpdir/ecs3510_28t_V1.5.2.16.bix
+set path_opcode2  $ftpdir/fake.bix
+set opcode1 [exec /bin/echo $path_opcode2 | /bin/sed "s/.*\\///g"]
+set opcode2 [exec /bin/echo $path_opcode2 | /bin/sed "s/.*\\///g"]
+set path_loader $ftpdir/fake.bix
+set opcode_old fake.bix
+set path_config $ftpdir/ecs351028_v3.cfg
+#set send_human {.0001 .01 1 .05 200}
+set send_human {.05 .01 100 .0001 200}
+set timeout 1
+set prompt "#"
+set pr "$prompt"
+
+
+
+####################FUNCTION#####################
+proc sendcommand {command pr} {
+set timeout 1
+set y 0
+set time 999999999
+#send -h
+while 1 {expect "$pr" {send -h "$command\n";break}
+#if { "$y" >= "$time" } { set y 0;exit 20};incr y +1}
+}
+
+proc autologin {} {
+set u 0
+set p 0
+set prompt "#"
+set model MODEL
+set username admin
+set password admin
+set username2 sadmin
+set password2 "tl;rjht"
+set username3 dszajtse
+set password3 pfqwtdYTN!
+send -h "\n"
+while 1 {
+set timeout 1
+#send_user "\n----\n\t\tu=$u p=$p\n\t\tuser=$username pass=$password\n----\n"
+expect {
+"Login:" {send -h "$username\n";incr u +1}
+"login:" {send -h "$username\n";incr u +1}
+"Username:" {send -h "$username\n";incr u +1}
+"UserName:" {send -h "$username\n";incr u +1}
+"Password:" {send -h "$password\n";incr p +1}
+"password:" {send -h "$password\n";incr p +1}
+"$prompt" {send -h "\n";break}
+"$model" {break}
+"Note:" {send -h "\n"}
+}
+expect *
+#if { "$u" == "0" } {send -h "\n"}
+
+if { "$u" == "1" && "$p" >= "1" } {set username $username2; set password $password2}
+if { "$u" == "2" && "$p" >= "2" } {set username $username3; set password $password3}
+if { "$u" == "5" && "$p" >= "5" } {exit 10}
+if { "$u" >= "10"} {set u 0;set p 0}
+}
+}
+#################################################   
+
+
+
+spawn minicom -D /dev/ttyS1 -b 115200
+
+while 1 {
+
+exec /bin/ip neigh flush $ip_addr_def
+
+autologin
+
+expect {
+"(config-if)" {send -h "exit\n";sleep 1;send -h "exit\n"}
+"(config)"  {sleep 1; send -h "exit\n"}
+}
+
+#config ip address
+sendcommand "config" "$pr"
+sendcommand "inter eth $interfall" "$pr"
+sendcommand "no mac access-group PPPOE_CST_IN in" "$pr"
+sendcommand "no pppoe intermediate-agent port-enable" "$pr"
+sendcommand "no pppoe intermediate-agent trust" "$pr"
+sendcommand "no shutdown" "$pr"
+sendcommand "inter eth $interf" "$pr"
+sendcommand "switch mode trun" "$pr"
+sendcommand "switch all vlan add 10 tag" "$pr"
+sendcommand "interface vlan 10" "$pr"
+sendcommand "ip add $ip_addr_def 255.255.248.0 default 172.19.0.1" "$pr"
+sendcommand "exit" "$pr"
+sendcommand "exit" "$pr"
+
+if { "$firmware" == "1" } {
+#opcode
+sendcommand "cop ftp file" "$pr"
+sendcommand "$ip_serv" "server"
+sendcommand "$ftpuser" "User"
+sendcommand "$ftppassword" "Password"
+sendcommand "2" "2. opcode"
+sendcommand "$path_opcode" "Source file name"
+sendcommand "$opcode_old" "Destination"
+sendcommand "cop run startup" "Success"
+sendcommand "" "Startup"
+sendcommand "reload" "Success"
+sendcommand "y" "y/n"
+sendcommand "" "$pr"
+sendcommand "" "Note"
+
+#loader
+sendcommand "cop ftp file" "$pr"
+sendcommand "$ip_serv" "server"
+sendcommand "$ftpuser" "User"
+sendcommand "$ftppassword" "Password"
+sendcommand "3" "3. loader"
+sendcommand "y" "y/n"
+sendcommand "$path_loader" "Source file name"
+
+autologin
+
+}
+
+#config
+sendcommand "" "#"
+sendcommand "cop ftp startup" "#"
+sendcommand "$ip_serv" "server"
+sendcommand "$ftpuser" "User"
+sendcommand "$ftppassword" "Password"
+sendcommand "$path_config" "Source configuration"
+sendcommand "" "Startup"
+sendcommand "reload" "Success"
+sendcommand "y" "y/n"
+
+
+sendcommand "" "Image version"
+#unset expect_out(buffer)
+autologin
+
+sendcommand "configure" "$pr"
+sendcommand "hostname $hostname" "$pr"
+sendcommand "prompt $hostname" "$pr"
+sendcommand "interf eth $interfsubscriber" "$pr"
+sendcommand "no shutdown" "$pr"
+sendcommand "sw mode access" "$pr"
+sendcommand "sw native vlan $vlanpppoe" "$pr"
+sendcommand "exit" "$pr"
+sendcommand "vlan database" "$pr"
+sendcommand "vlan 3" "$pr"
+sendcommand "exit" "$pr"
+sendcommand "interface vlan 3" "$pr"
+sendcommand "ip addr $ip_addr $ip_mask default-gateway $ip_gw" "$pr"
+sendcommand "exit" "$pr"
+sendcommand "exit" "$pr"
+sendcommand "cop run startup" "$pr"
+sendcommand "" "Startup"
+sendcommand "reload" "$pr"
+sendcommand "y" "y/n"
+
+
+
+#modprobe pcspkr - nuzno zagruzit neobhodimiy moduli,esli oni v chern spiske.
+#aptitude install beep
+exec modprobe pcspkr
+exec /usr/bin/beep -f 1000 -r 4
+exec rmmod pcspkr
+send_user "\nДля повтора нажмите Enter\nДля отмены n\n"
+
+while 1 {
+expect_user -re "(.*)\n" {set key $expect_out(1,string); break}
+}
+
+if {"$key" == "n"} { break}
+send_user "\nStrart.\n"
+
+sendcommand "" "Note"
+
+}

@@ -1,0 +1,47 @@
+#!/usr/bin/expect -d
+###!/usr/bin/expect -d #Для отладки.
+#Для получения hostname c dlink1100-08
+set timeout 1
+ #ip = нулевая позиция в строке аргументов, т.е. 1ый аргумент.
+#Если telnet не откроет сесию тогда вернёт башу echo $? = 1.
+spawn telnet [ lindex $argv 0 ]
+#Переменная по кторой поймём отбросила ли нас железка.
+set ok 0
+expect "Trying" {expect "Connected" {expect "Escape" {expect "Username" { sleep 1; send "admin\n"; expect "Password" {set ok 1; \
+expect -re "close|timeout" {set ok 0}}}}}}
+##send_user "\n\n\n$ok\n\n"
+#Если не дошли до ввода password-а тогда попробуем ребутнуть.
+if { $ok == 0 } {
+spawn telnet [ lindex $argv 0 ]
+send "admin\n"
+send "rabbit\n"
+send "reboot\n"
+send "y\n"
+send_user "\n\nRELOAD OK\n\n"
+sleep 10
+spawn telnet [ lindex $argv 0 ]
+#После ребута дошли ли до ввода passworda-а.
+expect "Username" {send "admin\n"; expect "Password" {set ok 1}}
+}
+##send_user "\n\n\n$ok\n\n"
+###Если не пускает, не перезагружается когда есть юзер на железке.
+###expect "closed" {spawn telnet [ lindex $argv 0 ]; send "admin\n"; send "rabbit\n"; send "reboot\n"; send "y\n"; sleep 6; spawn telnet [ lindex $argv 0 ]}
+if { $ok == 1 } {
+send "rabbit\n"
+ while 1 {expect "#" {break}}
+ #Выводим второй элемент с буфера.
+set hostname [ lindex $expect_out(buffer) 1 ]
+ #Вывести что сняли с буфера.
+ #send_user "$hostname\n"
+ #Установить сепаратор(разделитель) и записать в hostname.
+set hostname [ split $hostname ":" ]
+ #Получить количество,элементов в переменной hostname.
+ #puts [ llength $hostname ]
+ #Записать в первую hostname 1-ый элемент из hostname.
+set hostname [ lindex $hostname 0 ]
+ #Для отладки.
+ #send_user "$hostname\n"
+exec /bin/echo $hostname > /tmp/hostname_dlink.tmp
+ send "logout\n"
+close
+} else { exec echo [ lindex $argv 0 ] >> /tmp/baddlink.txt; exit 1}

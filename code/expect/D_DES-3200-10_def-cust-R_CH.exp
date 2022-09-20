@@ -1,0 +1,90 @@
+#!/usr/bin/expect
+set timeout 1
+set script [ exec /usr/bin/basename "$argv0" ]
+
+if {[llength $argv] != "6"} {
+send_user "$script ip_ocet3-4 mgs type locat sw_num vlan_pppoe\n$script 1.13 44 ou 14/08-1 1 415\n";exit 2}
+
+set username dima.z
+set password pfqwtd
+set ip_def 172.19.6.254
+set ip 172.19.[ lindex $argv 0 ]
+set mgs [ lindex $argv 1 ]
+set type [ lindex $argv 2]
+set locat [ lindex $argv 3 ]
+set swnum [ lindex $argv 4 ]
+set prompt "$type-$locat\sw$swnum"
+set locat [exec /bin/echo $locat | /bin/sed "s/\\//_/g"]
+set vlanpppoe [ lindex $argv 5 ]
+set hostname nch-mgs$mgs-$type-$locat-acsw$swnum
+
+set timeout 3
+send_user $timeout\n\n\n
+spawn /bin/ping $ip_def
+while 1 {expect "*icmp_seq*" {expect "*icmp_seq*" {expect "*icmp_seq*";spawn /bin/pidof -s ping; break}}}
+set timeout 1
+
+#Если не удачно выполниться snmpget,sed тогшда вернёт 0, и expect завершится.
+set mac [ exec snmpget -v2c -c ghbitktw "$ip_def" dot1dBaseBridgeAddress.0 2>/dev/null | sed "s/.*: //g"]
+if { $mac == ""} { set mac ERROR}
+
+send_user "*****\n$ip\n"
+send_user "$prompt\n"
+send_user "$hostname\n"
+send_user "$mac\n*****"
+
+send_user "\nЕсли данные верные нажмите Enter.\n"
+while 1 {
+expect_user "\n" {break}
+}
+
+
+
+spawn /usr/bin/telnet $ip_def
+set pid_spawn [exp_pid -i $spawn_id]
+
+
+while 1 {
+expect "Username"  {send "$username\n"}
+expect  "Password" {send "$password\n"}
+expect "admin" {break}
+send "\n"
+}
+send "\n"
+while 1 { expect "admin" {send "config ipif System ipaddress $ip/21\n";break}}
+
+exec kill -9 $pid_spawn
+
+spawn /usr/bin/telnet $ip
+while 1 {
+expect "Username"  {send "$username\n"}
+expect  "Password" {send "$password\n"}
+expect "admin" {break}
+send "\n"
+}
+send "\n"
+while 1 { expect "admin" {send "config command_prompt $prompt\n";break}}
+while 1 { expect "admin" {send "config snmp system_name $hostname\n";break}}
+while 1 { expect "admin" {send "create vlan vlanid $vlanpppoe\n";break}}
+while 1 { expect "admin" {send "config vlan vlanid $vlanpppoe add tagged 9-10\n";break}}
+while 1 { expect "admin" {send "config vlan vlanid $vlanpppoe add untagged 1-8\n";break}}
+while 1 { expect "admin" {send "config port_vlan 1-8 pvid $vlanpppoe\n";break}}
+while 1 { expect "admin" {send "config ports all state enable\n";break}}
+while 1 { expect "admin" {send "save\n";break}}
+while 1 { expect "Done" {break}}
+
+send_user "*****\n$ip\n"
+send_user "$prompt\n"
+send_user "$hostname\n*****\n"
+
+
+send_user "Success\n......."
+
+
+send_user "\nEnter - продолжить в конфигурационном режиме коммутатора(y/N)\n"
+while 1 {
+expect_user -re "(.*)\n" {set key $expect_out(1,string);break}
+}
+if {"$key" != "y"} {send "logout\n"}
+if {"$key" == "y"} {interact;exit}
+

@@ -1,0 +1,11 @@
+#!/usr/bin/expect
+set a "{a 1}
+{b 2}
+{c 3 c}
+{d 4}"
+set n 0
+while { $n < [llength $a] } {
+    send_user "[lindex $a $n]\n"
+    send_user ".\n" 
+    incr n +1
+}

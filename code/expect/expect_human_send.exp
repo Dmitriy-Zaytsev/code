@@ -1,0 +1,18 @@
+#!/usr/bin/expect
+#Не все железки успевают обработать быстрый ввод.
+set send_slow {1.1}
+#send -s "ls -la"
+send_user -s "This text is a test number 1.\n"
+
+set send_human {.1 .3 1 .05 2}
+#send -s "ls -la"
+send -h "This text is a test number 2.\n"
+
+expect "sdfsdfsdfsdf"
+#Если использовать с spawn (telnet,minicom) тогда работать будет но медленный 
+#ввод мы видеть не будем, хотя вводя символ мы отправляем его допустим telnet
+#серверу(switch-у) он отпрвляет его нам и по сути после этого мы должны увидеть 
+#этот символ на экране, но expect выволит это всё только после того как дойдёт
+#до expect(ожидание чего либо).
+
+ 

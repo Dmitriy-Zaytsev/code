@@ -1,0 +1,51 @@
+#!/usr/bin/expect
+set username dima.z
+set pass pfqwtd
+set pass2 pfqwtd777
+set ip [ lindex $argv 0 ]
+set city nch
+set location [ lindex $argv 1 ]
+set type  [ lindex $argv 2 ]
+set snmplocation [ lindex $argv 2 ]
+send_user "\n script 192.168.33.28 mgs30-mpls agsw1 30/06-1\n"
+set timeout 1
+#set send_human {.1 .3 1 .05 2}
+
+#set timeout 2
+#set try 3
+#set ping no
+#spawn /bin/ping $ip
+#while { "$try" != "0" } {set try [expr $try - 1];send_user "\nОсталось попыток $try.\n";expect "ttl=*" {expect "ttl=*" {expect "ttl=*";spawn /bin/pidof -s ping; set ping yes;break}}}
+#if { "$ping" != "yes" } {send_user "Нет icmp ответов.\n";exit}
+#send_user "icmp ответ получен.\n"
+#expect "sdfsdfsdf"
+#set timeout 1
+
+#set nmap_var [ exec  /bin/bash -c "(echo -n `(nmap -p 23 $ip | grep -i open)`;echo :abc)" ]
+#if { "23/tcp open telnet:abc" != "$nmap_var" } {send_user "Нет доступа по telnet\n";exit}
+
+set password $pass2
+spawn /usr/bin/telnet $ip
+while 1 {
+expect {
+"Login" {send "$username\r"}
+"login" {send "$username\r"}
+"username" {"send "$username\r"}
+"Username" {send "$username\r"}
+"Password" {send "$password\r"}
+"password" {send "$password\r"}
+"#" {break}
+">" {send "enable\n"; expect "Password" {send "$password\n";break}}
+}
+set password $pass
+}
+
+send "\r"
+while 1 { expect "#" {send "conf term\r";break}}
+while 1 { expect "#" {send "hostname $city-$location-$type\r";break}}
+while 1 { expect "#" {send "sysLocation $snmplocation\r";break}}
+
+while 1 { expect "#" {send "exit\r";break}}
+while 1 { expect "#" {send "cop run st\r";break}}
+while 1 { expect "startup" {send "Y\r";break}}
+while 1 { expect "#" {send "exit\r";break}}

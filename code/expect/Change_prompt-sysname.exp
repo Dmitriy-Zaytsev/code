@@ -1,0 +1,42 @@
+#!/usr/bin/expect
+set username dima.z
+set password pfqwtd
+set ip [ lindex $argv 0 ]
+set prompt [ lindex $argv 1 ]
+set icmp 0
+
+set x 3
+set timeout 1
+while  { "$x" != "0" } {
+spawn /bin/ping $ip -c 1 -W 1
+expect "1 received" {set icmp 1;break}
+incr x -1
+}
+if { "$icmp" == "0"} {send_user "Не доступен $ip\n";exit}
+
+
+set timeout 0.1
+spawn /usr/bin/telnet $ip
+while 1 {
+expect {
+"Login" {send "$username\r"}
+"login" {send "$username\r"}
+"username" {"send "$username\r"}
+"Username" {send "$username\r"}
+"Password" {send "$password\r"}
+"password" {send "$password\r"}
+"#" {break}
+">" {send "enable\n"; expect "Password" {send "$password\n";break}}
+}
+}
+set timeout 1
+send "\r"
+while 1 { expect "#" {send "config\r";break}}
+send "\r"
+while 1 { expect "#" {send "no ip domain-name\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+while 1 { expect "#" {send "cop run star\r";break}}
+while 1 { expect "onfig" {send "\r";break}}
+while 1 { expect "onfig" {send "Y\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+expect "sdfsf"

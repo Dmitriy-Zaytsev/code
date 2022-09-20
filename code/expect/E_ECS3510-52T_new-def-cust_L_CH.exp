@@ -1,0 +1,329 @@
+#!/usr/bin/expect
+#
+#/usr/bin/expect -d ./E_ECS3510-52T_new-def-cust_L_CH.exp 53.210/26 25 20_05_9p 1 403 2>/tmp/123.txt
+#
+if {[llength $argv] != "5"} {
+send_user "$argv0 ip_ocet3-4/mask mgs address sw_num vlan_pppoe
+$argv0 50.60/24 12 56_23_6p 1 415\n";exit 2}
+
+#Set position argument
+set dev_ip_addr_mask 10.218.[ lindex $argv 0 ]
+set dev_mgs [ lindex $argv 1 ]
+set dev_address [ lindex $argv 2 ]
+set dev_num [ lindex $argv 3 ]
+set dev_vlanpppoe [ lindex $argv 4 ]
+set dev_hostname nch-mu$dev_mgs\_$dev_address\-acsw$dev_num
+###nch-mu12_56_23_6p-acsw1###
+
+#IPaddress parsing
+set dev_ip_addr [ exec /usr/bin/ipcalc -n -b $dev_ip_addr_mask | /bin/grep -i Address | /usr/bin/cut -d ":" -f 2 | sed "s/ //g"]
+set dev_ip_gw [ exec /usr/bin/ipcalc -n -b $dev_ip_addr_mask | /bin/grep -i HostMin | /usr/bin/cut -d ":" -f 2 | sed "s/ //g"]
+set dev_ip_mask [ exec /usr/bin/ipcalc -n -b $dev_ip_addr_mask | /bin/grep -i Netmask | /usr/bin/cut -d ":" -f 2 | sed "s/ //g" | cut -d "=" -f 1]
+
+#Interface,def ip
+set dev_interf 1/1
+set dev_interf_all 1/1-52
+set dev_interf_subscr 1/1-48
+set dev_ip_def_ip 172.19.7.254
+set dev_ip_def_mask 255.255.248.0
+set dev_ip_def_gw 172.19.0.1
+
+#Prompt
+set dev_default_prompt "#"
+set pr "$dev_default_prompt"
+
+#Login,prompt
+set login_prompt "$pr"
+#
+set model ECS3510-52T
+set login_model_pre "CLI session with the $model"
+set login_model_post "Product : $model"
+#
+set username1 admin
+set password1 admin
+set username2 sadmin
+set password2 "tl;rjht"
+set username3 dszajtse
+set password3 pfqwtdYTN!
+
+
+#Firmware upgrade on/off, 0-off
+set firmware_upgrade 1
+
+#FTP and Firmware
+set ftp_user anonymous
+set ftp_password anonymous
+set ftp_ip 192.168.33.6
+#
+set ftp_dev_dir E_ECS3510-52T
+#
+set dev_opcode1 ecs3510_28t_v114.11.10.1.bix
+set dev_path_opcode1 $ftp_dev_dir/$dev_opcode1
+#
+set dev_loader1 ecs3510_28t_ld_V1.0.6.4a.Uxxx.bix
+set dev_path_loader1 $ftp_dev_dir/$dev_loader1
+#
+set dev_loader2 ecs3510_28t_ld_V1.0.6.4b.bix
+set dev_path_loader2 $ftp_dev_dir/$dev_loader2
+#
+set dev_opcode2 ecs3510_28t_V1.5.2.16.bix
+set dev_path_opcode2 $ftp_dev_dir/$dev_opcode2
+#
+set dev_config ecs351052_v3.cfg
+set dev_path_config $ftp_dev_dir/$dev_config
+#
+
+##########
+#Default expect parameters
+set send_human {.0001 .01 1 .05 200}
+#set send_human {.05 .01 100 .0001 200}
+set match_max 10000
+set timeout 1
+##########
+
+
+####################FUNCTION#####################
+proc sendcommand {pr command} {
+ set timeout 1
+ set y 0
+ set time 180
+ #send -h
+ #send_user "\n\n\n*Expect $pr Send $command *: "
+ while 1 {
+  expect "$pr" {send -h "$command\n";break}
+  if { "$y" >= "$time" } {
+   send_user "**************  ERROR  **************" 
+   set y 0;exit 20
+  }
+  incr y +1
+ }
+}
+
+proc autologin {} {
+ send_user "\n************** \t Autologin start \t **************\n"
+ set u 0
+ set p 0
+ global timeout login_prompt login_model_pre username1 password1 username2 password2 username3 password3
+ send -h "\n"
+ while 1 {
+  if { "$u" == "0" && "$p" >= "0" } {set username $username1; set password $password1}
+  #send_user "\n----\n\t\tu=$u p=$p\n\t\tuser=$username pass=$password\n----\n"
+  expect {
+   "Login:" {send -h "$username\n";incr u +1}
+   "login:" {send -h "$username\n";incr u +1}
+   "Username:" {send -h "$username\n";incr u +1}
+   "UserName:" {send -h "$username\n";incr u +1}
+   "Password:" {send -h "$password\n";incr p +1}
+   "password:" {send -h "$password\n";incr p +1}
+   "$login_prompt" {send -h "\n";break}
+   "$login_model_pre" {break}
+   "Note:" {send -h "\n"}
+  }
+  expect *
+  ##if { "$u" == "0" && "$p" == 0 } {send -h "\n"}
+  if { "$u" == "1" && "$p" >= "1" } {set username $username2; set password $password2}
+  if { "$u" == "2" && "$p" >= "2" } {set username $username3; set password $password3}
+  if { "$u" == "5" && "$p" >= "5" } {exit 10}
+  if { "$u" >= "10"} {set u 0;set p 0}
+ }
+ expect {
+ "(config-if)" {send -h "exit\n";sleep 1;send -h "exit\n"}
+ "(config)"  {sleep 1; send -h "exit\n"}
+ }
+ send_user "\n************** \t Autologin stop \t **************\n"
+}
+#################################################   
+
+
+
+spawn minicom -D /dev/ttyS1 -b 115200
+
+if { 1 == 1 } {
+
+autologin
+
+#Config default ip address
+sendcommand "$pr" "terminal length 0"
+sendcommand "$pr" "config"
+sendcommand "$pr" "no tacacs-server 1"
+sendcommand "$pr" "inter eth $dev_interf_all"
+sendcommand "$pr" "no mac access-group PPPOE_CST_IN in"
+sendcommand "$pr" "no pppoe intermediate-agent port-enable"
+sendcommand "$pr" "no pppoe intermediate-agent trust"
+sendcommand "$pr" "no shutdown"
+sendcommand "$pr" "inter eth $dev_interf"
+sendcommand "$pr" "switch mode trun"
+sendcommand "$pr" "switch all vlan add 10 tag"
+sendcommand "$pr" "interface vlan 10"
+sendcommand "$pr" "ip add $dev_ip_def_ip $dev_ip_def_mask default $dev_ip_def_gw"
+sendcommand "$pr" "exit"
+sendcommand "$pr" "no spanning-tree"
+sendcommand "$pr" "exit"
+sendcommand "$pr" "copy run start"
+sendcommand "Startup" ""
+sendcommand "Success" ""
+
+#Upgrade opcode1
+sendcommand "$pr" "copy ftp file"
+sendcommand "FTP" "$ftp_ip"
+sendcommand "User" "$ftp_user"
+sendcommand "Password" "$ftp_password"
+sendcommand "2. opcode" "2"
+sendcommand "Source" "$dev_path_opcode1"
+sendcommand "Destination" "$dev_opcode1"
+sendcommand "Success" ""
+sendcommand "$pr" "configure"
+sendcommand "$pr" "boot system opcode:$dev_opcode1"
+sendcommand "$pr" "interface ethernet $dev_interf"
+sendcommand "$pr" "shutdown"
+sendcommand "$pr" "exit"
+sendcommand "$pr" "exit"
+sendcommand "$pr" "copy run start"
+sendcommand "Startup" ""
+sendcommand "Success" "reload"
+sendcommand "y/n" "y"
+sendcommand "$login_model_post" ""
+
+}
+
+autologin
+
+sendcommand "$pr" "configure"
+sendcommand "$pr" "interface ethernet $dev_interf"
+sendcommand "$pr" "no shutdown"
+sendcommand "$pr" "exit"
+sendcommand "$pr" "exit"
+
+if { 1 == 2 } {
+
+#Delete old firmware
+sendcommand "$pr" "dir"
+expect -re "$pr" ; set outfile "$expect_out(buffer)"
+puts "$outfile"
+set opcode_old [ exec /bin/echo "$outfile" | grep -i -E "opcode.*Y" | grep bix | sed -E "s/ {1,99}/ /g" | cut -d " " -f 1 | sed -E "s/ //g"]
+puts "$opcode_old"
+#sendcommand "*" "delete file name $opcode_old"
+foreach opc "$opcode_old" {
+ sendcommand "*" ""
+ sendcommand "$pr" "delete file name $opc"
+ sendcommand "$pr" " "
+}
+
+#Detect loader version
+sendcommand "$pr" "show version"
+expect -re "$pr" ; set outversion "$expect_out(buffer)"
+puts "$outversion"
+set serial [ exec /bin/echo "$outversion" | grep -i "serial" | sed -E "s/ {1,99}/ /g" | cut -d ":" -f 2 |  sed -E "s/ //g"]
+puts "$serial"
+if { 0 == [lsearch "$serial" "EC*"] } {puts "ECxxx"; set dev_loader $dev_loader1; set dev_path_loader $dev_path_loader1}
+if { 0 == [lsearch "$serial" "U*"] } {puts "Uxxx"; set dev_loader $dev_loader2; set dev_path_loader $dev_path_loader2}
+
+}
+
+#Кастыли так как верхнее не всегда работает, лишнии символы лезут в названия.
+set opcode_old "ecs3510_1.2.4.2.bix"
+sendcommand "$pr" "delete file name $opcode_old"
+set dev_loader $dev_loader1; set dev_path_loader $dev_path_loader1
+
+
+#Upgrade loader
+sendcommand "*" ""
+sendcommand "$pr" "copy ftp file"
+sendcommand "FTP" "$ftp_ip"
+sendcommand "User" "$ftp_user"
+sendcommand "Password" "$ftp_password"
+sendcommand "3. loader" "3"
+sendcommand "y/n" "y"
+sendcommand "Source" "$dev_path_loader"
+sendcommand "Success" "configure"
+sendcommand "$pr" "interface ethernet $dev_interf"
+sendcommand "$pr" "shutdown"
+sendcommand "$pr" "exit"
+sendcommand "$pr" "exit"
+sendcommand "$pr" "reload"
+sendcommand "y/n" "y"
+sendcommand "$login_model_post" ""
+
+autologin
+
+sendcommand "$pr" "configure"
+sendcommand "$pr" "interface ethernet $dev_interf"
+sendcommand "$pr" "no shutdown"
+sendcommand "$pr" "exit"
+sendcommand "$pr" "exit"
+
+#Upgrade opcode2
+sendcommand "$pr" "copy ftp file"
+sendcommand "FTP" "$ftp_ip"
+sendcommand "User" "$ftp_user"
+sendcommand "Password" "$ftp_password"
+sendcommand "2. opcode" "2"
+sendcommand "Source" "$dev_path_opcode2"
+sendcommand "Destination" "$dev_opcode2"
+sendcommand "Success" ""
+sendcommand "$pr" "configure"
+sendcommand "$pr" "boot system opcode:$dev_opcode2"
+sendcommand "$pr" "exit"
+
+
+#Default config
+sendcommand "$pr" "cop ftp startup"
+sendcommand "FTP" "$ftp_ip"
+sendcommand "User" "$ftp_user"
+sendcommand "Password" "$ftp_password"
+sendcommand "Source" "$dev_path_config"
+sendcommand "Startup" ""
+sendcommand "Success" "reload"
+sendcommand "y/n" "y"
+sendcommand "$login_model_post" ""
+
+autologin
+
+sendcommand "$pr" "configure"
+sendcommand "$pr" "hostname $dev_hostname"
+sendcommand "$pr" "prompt $dev_hostname"
+sendcommand "$pr" "interf eth $dev_interf_subscr"
+sendcommand "$pr" "no shutdown"
+sendcommand "$pr" "sw mode access"
+sendcommand "$pr" "sw native vlan $dev_vlanpppoe"
+sendcommand "$pr" "exit"
+sendcommand "$pr" "vlan database"
+sendcommand "$pr" "vlan 3"
+sendcommand "$pr" "exit"
+sendcommand "$pr" "interface vlan 3"
+sendcommand "$pr" "ip addr $dev_ip_addr $dev_ip_mask default-gateway $dev_ip_gw"
+sendcommand "$pr" "exit"
+sendcommand "$pr" "exit"
+sendcommand "$pr" "cop run startup"
+sendcommand "Startup" ""
+sendcommand "Success" ""
+#sendcommand "Success" "reload"
+#sendcommand "y/n" "y"
+#sendcommand "$login_model_post" ""
+
+
+#modprobe pcspkr - nuzno zagruzit neobhodimiy moduli,esli oni v chern spiske.
+#aptitude install beep
+exec modprobe pcspkr
+exec /usr/bin/beep -f 1000 -r 4
+exec rmmod pcspkr
+puts "SUCCESS"
+
+expect *
+
+
+######################################
+#Console#show #version                                                                                                                                                                                               
+#Unit1                                                                                                                                                                                                             
+#Serial Number         :EC1729003341                                                                                                                                                                             
+#Hardware Version      :R0B                                                                                                                                                                                      
+#EPLD Version          :0.00                                                                                                                                                                                     
+#Number of Ports        : 52                                                                                                                                                                                       
+#Main Power Status      : Up                                                                                                                                                                                       
+#Role                   : Master                                                                                                                                                                                   
+#Loader Version         : 1.0.2.2                                                                                                                                                                                  
+#Linux Kernel Version   : 2.6.22.18                                                                                                                                                                                
+#Boot ROM Version       : 0.0.0.1                                                                                                                                                                                  
+#Operation Code Version : 1.2.4.2           
+######################################
+

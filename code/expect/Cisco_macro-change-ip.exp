@@ -1,0 +1,85 @@
+#!/usr/bin/expect
+set username dima.z
+set password pfqwtd
+set ipold [ lindex $argv 0 ]
+set ipnew [ lindex $argv 1 ]
+set mask [ lindex $argv 2 ]
+set gw [ lindex $argv 2 ]
+set timeout 0
+set time 60
+set send_human {0.05 .0000001 1 .000001 5}
+
+
+spawn telnet $ipold
+set timeout 0
+set u 0
+set p 0
+while 1 {
+expect {
+"Login:.*" {send "$username\r";incr u +1}
+"login:" {send "$username\r";incr u +1}
+"username:" {send "$username\r";incr u +1}
+"Username:" {send "$username\r";incr u +1}
+"UserName:" {send "$username\r";incr u +1}
+"Password:" {send "$password\r";incr p +1}
+"password:" {send "$password\r";incr p +1}
+"#" {break}
+">" {send "enable\r"; expect "Password" {send "$password\r";break}}
+}
+#if { "$u" == "2" && "$p" == "2" } {set username sa0405nch; set password dwGynns5vD}
+}
+set i 0
+set timeout 1
+
+send -h "\r"
+while 1 {expect "#" {send -h "reload in 10\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {
+expect {
+"confirm" {send -h "\r";break}
+"Save" {send -h "yes\r"}
+}
+if { "$i" >= "$time" } { set i 0;exit 30};incr i +1
+}
+
+while 1 {expect "#" {send -h "conf ter\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "macro name changeip\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "@" {send -h "interface vlan 113\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "*" {send -h "ip address $ipnew $mask\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "*" {send -h "exit\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "*" {send -h "ip default-gateway $gw\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "*" {send -h "exit\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "*" {send -h "exit@\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "macro global apply changeip\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+
+
+spawn telnet $ipnew
+set timeout 0
+set u 0
+set p 0
+while 1 {
+expect {
+"Login:.*" {send "$username\r";incr u +1}
+"login:" {send "$username\r";incr u +1}
+"username:" {send "$username\r";incr u +1}
+"Username:" {send "$username\r";incr u +1}
+"UserName:" {send "$username\r";incr u +1}
+"Password:" {send "$password\r";incr p +1}
+"password:" {send "$password\r";incr p +1}
+"#" {break}
+">" {send "enable\r"; expect "Password" {send "$password\r";break}}
+}
+#if { "$u" == "2" && "$p" == "2" } {set username sa0405nch; set password dwGynns5vD}
+}
+set i 0
+set timeout 1
+
+send "\r"
+while 1 {expect "#" {send -h "conf term\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "no macro name changeip\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "exit\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "cop run start\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "start" {send -h "\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "reload cancel\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "exit\r";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+
+

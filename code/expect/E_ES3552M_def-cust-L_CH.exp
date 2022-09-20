@@ -1,0 +1,53 @@
+#!/usr/bin/expect
+#Настройка с default на customized config.
+send_user "....................................\n"
+send_user "script mgs locations №sw PPPoE_vlan ocet3.ocet4\n"
+send_user "scipt 44 14/08-1 1 454 0.78\n"
+send_user "....................................\n"
+if {[llength $argv] != "5"} {send_user "\nError arg.\n\n";exit}
+
+set username sadmin
+set password "tl;rjht"
+set man_vlan 10
+set mask 255.255.255.0
+set gw 172.19.10.1
+
+set mgs [ lindex $argv 0 ]
+set locat [ lindex $argv 1 ]
+set locat [exec /bin/echo $locat | /bin/sed "s/\\//_/g"]
+set swnum [ lindex $argv 2 ]
+set hostname nch-mgs$mgs-ou-$locat-acsw$swnum
+set vlanPPPoE [ lindex $argv 3 ]
+set new_ip 172.19.[ lindex $argv 4 ]
+
+spawn minicom -b 9600 -D /dev/ttyS1
+send "\n"
+set timeout 1
+while 1 {
+ expect "Username:" { send "$username\n"}
+ expect "Password:" { send "$password\n"}
+ send "\n"
+ expect "#" {break} 
+}
+
+set timeout 1
+
+while 1 {expect "#" { send "config\n"; break}}
+while 1 {expect "#" { send "interface ethernet 1/1-48\n"; break}}
+while 1 {expect "#" { send "switchport native vlan $vlanPPPoE\n"; break}}
+while 1 {expect "#" { send "exit\n"; break}}
+while 1 {expect "#" { send "interface ethernet 1/49-52\n\n"; break}}
+while 1 {expect "#" { send "switchport allowed vlan add $vlanPPPoE tagged\n"; break}}
+while 1 {expect "#" { send "exit\n"; break}}
+while 1 {expect "#" { send "interface vlan $man_vlan\n"; break}}
+while 1 {expect "#" { send "ip add $new_ip $mask default $gw\n"; break}}
+while 1 {expect "#" { send "exit\n"; break}}
+while 1 {expect "#" { send "hostname $hostname\n"; break}}
+while 1 {expect "#" { send "prompt $hostname\n"; break}}
+while 1 {expect "#" { send "exit\n"; break}}
+while 1 {expect "#" { send "cop run st\n"; break}}
+while 1 {expect "#" { send "\n"; break}}
+while 1 {expect "Success" { send "reload\n"; break}}
+while 1 {expect "Continue" { send "y\n"; break}}
+#Иначе он не увидит Continue и не введёт y.
+expect "ZDEM"

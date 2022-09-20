@@ -1,0 +1,22 @@
+#!/usr/bin/expect
+set username dima.z
+set password pfqwtd
+spawn /usr/bin/telnet 192.168.32.2
+set var_expect 1
+expect 1
+while 1 {
+expect "login"  { send "$username\n"}
+expect "Password" { send "$password\n"}
+expect "#" {break}
+}
+
+send "\r\r"
+set file [open "/tmp/users.txt" r]
+foreach line [split [read $file] "\n"] {
+set user [lindex $line 0]
+#send_user "$user\n"
+while 1 { expect "#" {send "clear subscriber username $user\r";break}}
+}
+while 1 { expect "#" {send "exit\r";break}}
+send "\n\n"
+expect "sdfsdf"

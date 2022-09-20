@@ -1,0 +1,78 @@
+#!/usr/bin/expect
+#log_user 0
+set ip [ lindex $argv 0 ]
+set username dszajtse
+set password J5j4j3j2j1
+set username2 dima.z
+set password2 pfqwtd
+set username3 admin
+set password3 rabbit
+
+
+set i 0
+set timeout 1
+set time 120000
+set match_max 99999
+set send_human {0.01 .00001 1 .000001 5}
+set model 0
+set port 0
+set command 0
+set prompt 0
+
+match_max 999000
+
+spawn telnet $ip
+set u 0
+set p 0
+set n 0
+set timeout 0
+while 1 {
+expect {
+"Login:.*" {send "$username\r";incr u +1}
+"login:" {send "$username\r";incr u +1}
+"username:" {send "$username\r";incr u +1}
+"Username:" {send "$username\r";incr u +1}
+"UserName:" {send "$username\r";incr u +1}
+"Password:" {send "$password\r";incr p +1}
+"password:" {send "$password\r";incr p +1}
+"#" {send "\r";break}
+">" {send "enable\r"; expect "Password" {send "$password\r";break}}
+"failed" {send_user "$ip;\n";exit 10}
+"Invalid" {send_user "$ip;\n";exit 10}
+}
+if { "$u" == "1" && "$p" == "1" } {set username $username2; set password $password2}
+if { "$u" == "2" && "$p" == "2" } {set username $username3; set password $password3}
+if { "$u" == "5" && "$p" == "5" } {send_user "$ip;\n";exit 10}
+incr n +1
+if { "$n" >= "$time" } {send_user "$ip;\n";exit 20}
+}
+
+#######################
+set prompt ">|#"
+#######################
+set command "
+enable lldp
+exit
+save
+ 
+logout
+"
+#######################
+
+set a 0
+set n 0
+#send_user "command: $command prompt:$prompt model:$model"
+if { "$command" != "0" && "$prompt" != "0" } {
+while { $a < [llength $command] } {
+#    set com "[lindex $command $a]\n"
+    set com "[lindex [split $command "\n"] $a]"
+    send "\r"
+    while 1 {expect -re "$prompt" {send -h "$com\r";break};if { "$n" >= "$time" } { set i 0;exit 30};incr n +1}
+    incr a +1
+}
+}
+
+
+set timeout 1
+expect "sdfsdf"
+exit 100

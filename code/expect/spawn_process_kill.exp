@@ -1,0 +1,17 @@
+#!/usr/bin/expect
+send_user "START\n\n"
+
+set PID [spawn sleep 10]; #unix ID
+set ID "$spawn_id"; #expect ID
+
+send_user "\n$PID\t$ID\n"
+
+exec kill -9 $PID       
+##close -i $ID; #not working
+
+wait; #wait close spawn proccess
+
+expect * #wait output text
+
+send_user "\nEND\n"
+

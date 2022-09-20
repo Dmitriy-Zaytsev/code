@@ -1,0 +1,144 @@
+#!/usr/bin/expect
+#НУЖНО ЗАПУСКАТЬ С ПРАВАМИ SU Т.К. ip neigh flush.
+set username sadmin
+set password "tl;rjht"
+set interf 1/1
+set ip_addr 172.19.1.251
+set ip_serv 192.168.33.13
+set path_opcode E_ES3510MA/es3510ma_1.3.6.7.bix
+set opcode_old es3510ma_1.2.6.0.bix
+set path_loader E_ES3510MA/es3510ma_ld_V1.0.0.5.bix
+set path_opcode2  E_ES3510MA/es3510ma_v1.4.2.4.bix
+set opcode2 [exec /bin/echo $path_opcode2 | /bin/sed "s/.*\\///g"]
+set path_config E_ES3510MA/E_ES3510MA.cfg
+
+
+spawn minicom -D /dev/ttyS0 -b 115200
+set timeout 1
+while 1 {
+exec /bin/ip neigh flush $ip_addr
+send "\n"
+while 1 {
+ expect "Username:" { send "$username\n"}
+ expect "Password:" { send "$password\n"}
+ expect "ES3510MA" {break}
+ expect "#" {break}
+ send "\n" 
+}
+send "config\n"
+ while 1 {expect "(config)#" {break}}
+send "inter eth $interf\n"
+while 1 {expect "(config-if)#" { send "no shutdown\n"; break}}
+ while 1 {expect "(config-if)#" {break}}
+send "switch mode trun\n"
+ while 1 {expect "(config-if)#" {break}}
+send "switch all vlan add 10 tag\n"
+while 1 {expect "(config-if)#" { send "no mac access-group PPPOE_CST_IN in\n"; break}}
+ while 1 {expect "(config-if)#" {break}}
+send "interface vlan 10\n"
+ while 1 {expect "(config-if)#" {break}}
+send "ip add $ip_addr 255.255.248.0 default 172.19.0.1\n"
+ while 1 {expect "(config-if)#" {break}}
+send "exit\n"
+ while 1 {expect "(config)#" {break}}
+send "exit\n"
+
+#OPCODE
+ while 1 {expect "#" {break}}
+send "cop ftp file\n"
+ while 1 {expect "server" {break}}
+send "$ip_serv\n"
+ while 1 {expect "User" {break}}
+send "\n"
+ while 1 {expect "Password" {break}}
+send "\n"
+ while 1 {expect "2. opcode" {break}}
+send "2\n"
+ while 1 {expect "Source file name" {break}}
+send "$path_opcode\n"
+ while 1 {expect "Destination" {break}}
+send "$opcode_old\n"
+ while 1 {expect "Success" {break}}
+send "cop run startup\n"
+ while 1 {expect "Startup" {break}}
+send "\n"
+ while 1 {expect "#" {break}}
+send "reload\n"
+ while 1 {expect "y/n" {break}}
+send "y\n"
+
+while 1 {expect "Note" {send "\n"; break}}
+
+while 1 {
+ expect "Username:" { send "dszajtse\n"}
+ expect "Password:" { send "K5k4k3k2k1\n"}
+ expect "ES3510MA" {break}
+ expect "#" {break}
+ expect "Username:" { send "sadmin\n"}
+ expect "Password:" { send "tl;rjht\n"}
+ expect "#" {break}
+ send "\n" 
+}
+
+#LOADER
+send "cop ftp file\n"
+ while 1 {expect "server" {break}}
+send "$ip_serv\n"
+ while 1 {expect "User" {break}}
+send "\n"
+ while 1 {expect "Password" {break}}
+send "\n"
+ while 1 {expect "3. loader" {break}}
+send "3\n"
+ while 1 {expect "y/n" {break}}
+send "y\n"
+ while 1 {expect "Source file name" {break}}
+send "$path_loader\n"
+ while 1 {expect "Success" {break}}
+
+#OPCODE2
+send "cop ftp file\n"
+ while 1 {expect "server" {break}}
+send "$ip_serv\n"
+ while 1 {expect "User" {break}}
+send "\n"
+ while 1 {expect "Password" {break}}
+send "\n"
+ while 1 {expect "2. opcode" {break}}
+send "2\n"
+ while 1 {expect "Source file name" {break}}
+send "$path_opcode2\n"
+ while 1 {expect "Destination" {break}}
+send "$opcode2\n"
+ while 1 {expect "Success" {break}}
+
+#DEF CONFIG FILE.
+send "cop ftp startup\n"
+ while 1 {expect "server" {break}}
+send "$ip_serv\n"
+ while 1 {expect "User" {break}}
+send "\n"
+ while 1 {expect "Password" {break}}
+send "\n"
+ while 1 {expect "Source configuration" {break}}
+send "$path_config\n"
+ while 1 {expect "Startup" {break}}
+send "\n"
+ while 1 {expect "Success" {break}}
+send "reload\n"
+ while 1 {expect "y/n" {break}}
+send "y\n"
+ while 1 {expect "#" {break}}
+
+#modprobe pcspkr - nuzno zagruzit neobhodimiy moduli,esli oni v chern spiske.
+#exec /usr/bin/beep -f 1000 -r 4
+send_user "\nДля повтора нажмите Enter\nДля отмены n\n"
+
+while 1 {
+expect_user -re "(.*)\n" {set key $expect_out(1,string); break}
+}
+if {"$key" == "n"} { break}
+send_user "\nStrart.\n"
+
+}
+

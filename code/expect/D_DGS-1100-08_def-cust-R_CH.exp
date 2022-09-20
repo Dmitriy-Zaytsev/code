@@ -1,0 +1,183 @@
+#!/usr/bin/expect
+
+ set errormac 0
+ set ip "172.19."
+ set sw1 "sw"
+
+# exec /bin/ip neigh del 172.19.5.254 dev eth1.10
+ spawn /bin/ping 172.19.5.254
+ while 1 {expect "icmp_seq*" {expect "icmp_seq*" {expect "icmp_seq*"; break}}
+}  
+
+#zavershenie pinga
+ spawn /bin/pidof -s ping
+ set timeout 1
+expect "tjnuvremj"
+   #send_user $expect_out(buffer)
+ spawn /bin/kill -9 $expect_out(buffer)
+
+ send_user "\n\nКоммутатор доступен\n\n"
+ 
+#smotrim mac kommutatora
+spawn /bin/ip neighbour
+expect "tjnuvremj" 
+ set outarp $expect_out(buffer)
+ set index [lsearch $outarp 172.19.5.254]
+ set macsw [lindex $outarp $index+4]
+ send_user "\n\n\nMACaddressSW-$macsw\n\n\n"
+
+#proverjem bil li zadan verny mac address, esli mac plochoi vvodim rukami i zapominaem v peremeniy errormac zanosim znachenie 1, potom nam ponadobitsj
+if { $macsw == "00:23:79:00:23:79"} {send_user "Ошибка!!! MAC адрес коммутатора не являеться подлинным,\n введите MAC адрес в формате 00:5f:ba:85:d5:43\n";
+
+while 1 {
+expect_user -re "(.*)\n" {set macsw $expect_out(1,string); set errormac 1; break}
+  }
+}
+
+   #send_user $errormac
+
+#vvodim ip address kotori budet naznachen kommutatoru
+send_user "\nВведите 2а последних окета ip адреса 172.19.?.?/21\nПример: 1.13\n"
+
+while 1 {
+expect_user -re "(.*)\n" {set ipadd $expect_out(1,string); set ipaddress "$ip$ipadd"; break}
+  }
+
+
+
+#vvodim nomer mku
+#send_user "\nВведите № МКУ\n"
+
+#while 1 {
+#expect_user -re "(.*)\n" {set mku $expect_out(1,string); send_user "Вы ввели $mku\n"; break}
+#  }
+
+
+
+#vvodim tip jschika
+send_user "\nВведите тип ящика:\n1 - r1.5\n2 - r2\n3 - r3\n"
+
+while 1 {
+expect_user "1\n" {set tip "r1.5"; break}
+expect_user "2\n" {set tip "r2"; break}
+expect_user "3\n" {set tip "r3"; break}
+  }
+
+
+#vvodim address ustanovki
+send_user "\nВведите комплекс и номер дома\nПример: 14/08\n"
+
+while 1 {
+expect_user -re "(.*)\n" {set dom $expect_out(1,string); break}
+  }
+
+#vvodim nomer podezda
+send_user "\nВведите № подъезда\n"
+
+while 1 {
+expect_user -re "(.*)\n" {set pod $expect_out(1,string); break}
+  }
+
+
+#vvodim nomer acsw
+send_user "\nВведите № sw\n"
+
+while 1 {
+expect_user -re "(.*)\n" {set sw $expect_out(1,string); break}
+  }
+
+
+#vvodim abonenskiy pppoe vlan
+send_user "\nВведите PPPoE vlan\n"
+
+while 1 {
+expect_user -re "(.*)\n" {set vlan $expect_out(1,string); break}
+  }
+
+#sw1 - peremenaj kotoraj soderzit sw t.k ne poluchaetsj sobrat v hostname ukazav posto sw a ne peremenuy
+set hostname "$tip-$dom-$pod$sw1$sw"
+  #send_user $hostname
+
+send_user "\n\n\n\n\n\n\n.................................................\n"
+send_user "   IP address - $ipaddress\n"
+send_user "   MAC switch - $macsw\n"
+#send_user "   Hostname - $hostname\n"
+send_user "   Box - $tip\n"
+send_user "   Location - $dom\n"
+send_user "   Porch - $pod\n"
+send_user "   Acsw№ - $sw\n"
+send_user "   PPPoE vlan - $vlan\n"
+send_user ".................................................\n"
+
+send_user "\nЕсли данные верные нажмите Enter\n"
+
+while 1 {
+expect_user "\n" {break}
+}
+
+
+#send_user "\nЕсли данные верные нажмите Enter\n"
+
+#while 1 {
+#expect_user "\n" {break}
+#}
+
+while 1 {
+spawn /usr/bin/telnet 172.19.5.254
+expect "Username" {send "admin\n"; set timeout 5; expect "Password" {send "rabbit\n"; break}}
+spawn /bin/pidof -s telnet
+set timeout 1
+expect "tjnuvremj"
+   #send_user $expect_out(buffer)
+spawn /bin/kill -9 $expect_out(buffer)
+}
+
+
+expect "#"
+if {$errormac == "1"} {send "config sysmac $macsw\n"}
+expect "#"
+send "config prompt_command $hostname\n"
+expect "#"
+send "config ipif System ipaddress $ipaddress/21\n"
+expect "#"
+#send "logout\n"
+
+
+set timeout 1
+while 1 {
+spawn /usr/bin/telnet $ipaddress
+set timeout 4
+expect "tjnuvremj"
+expect "Username" {send "admin\n"; set timeout 5; expect "Password" {send "rabbit\n"; break}}
+spawn /bin/pidof -s telnet
+set timeout 1
+expect "tjnuvremj"
+   #send_user $expect_out(buffer)
+spawn /bin/kill -9 $expect_out(buffer)
+}
+
+set timeout 2
+expect "#"
+ send "save\n"
+expect "#"
+ send "create vlan vlanid $vlan\n"
+expect "#"
+ send "config vlan vlanid $vlan add tagged 1\n"
+expect "#"
+ send "config vlan vlanid $vlan add untagged 2-8\n"
+expect "#"
+ send "config port_vlan 2-8 pvid $vlan\n"
+expect "#"
+ send "config ports 2-8 state enable\n"
+expect "#"
+ send "save\n"
+expect "#"
+ send "svae\n"
+exec /bin/ip neigh del 172.19.5.254 dev eth1.10
+
+send_user "\nEnter - продолжить в конфигурационном режиме коммутатора\n"
+
+while 1 {
+expect_user "\n" {interact;break}
+}
+

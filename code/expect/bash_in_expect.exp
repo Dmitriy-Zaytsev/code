@@ -1,0 +1,18 @@
+#!/usr/bin/expect
+set ip 172.19.0.13
+set ip2 172.19.1.13
+###/bin/bash -c '  ' var1 var2
+exec /bin/bash  -c {
+> /tmp/var
+> /tmp/var2
+echo $0 > /tmp/var;
+echo $1 > /tmp/var2;
+IP=$0
+export IP
+} $ip $ip2
+
+set IP1 [exec cat /tmp/var]
+set IP2 [exec cat /tmp/var2]
+
+send_user $IP1\n
+send_user $IP2\n

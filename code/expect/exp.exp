@@ -1,0 +1,7 @@
+#!/usr/bin/expect
+set v ecs3510_28t_v114.11.10.1.bix
+
+foreach opc "$v" {
+ puts "$opc"
+ puts "delete file name $opc"
+}

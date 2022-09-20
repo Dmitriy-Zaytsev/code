@@ -1,0 +1,34 @@
+#!/usr/bin/expect
+set username dima.z
+set password pfqwtd
+
+set ip [ lindex $argv 0 ]
+
+set timeout 0.1
+spawn /usr/bin/telnet $ip
+while 1 {
+expect {
+"Login" {send "$username\r"}
+"login" {send "$username\r"}
+"username" {send "$username\r"}
+"Username" {send "$username\r"}
+"UserName" {send "$username\r"}
+"Password" {send "$password\r"}
+"password" {send "$password\r"}
+"#" {break}
+">" {send "enable\n"; expect "Password" {send "$password\n";break}}
+}
+}
+send "term len 0\r"
+while 1 { expect "#" {send "show clock\r";break}}
+while 1 { expect "#" {send "show process rcm detail\r";break}}
+while 1 { expect "#" {send "show process rcm crash-info\r";break}}
+while 1 { expect "#" {send "show process rcm chunk-statistics\r";break}}
+while 1 { expect "#" {send "show process rcm diagnostic\r";break}}
+while 1 { expect "#" {send "show process rcm termination-cause\r";break}}
+while 1 { expect "#" {send "show process rcm throttle-statistics\r";break}}
+while 1 { expect "#" {send "show rcm memory\r";break}}
+while 1 { expect "#" {send "show memory\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+
+

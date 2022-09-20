@@ -1,0 +1,22 @@
+#!/usr/bin/expect
+set ip [lindex $argv 0]
+set reboot [lindex $argv 1]
+
+#if { $reboot == "-r"} {
+#set timeout 1
+#set x 5
+#while { "$x" != "0" } {
+# send_user "До продолжения осталось"
+# send_user " $x секунд \r"
+# incr x -1
+# expect_user "\n" {break}
+#}
+#}
+
+send_user $ip
+spawn /usr/bin/telnet $ip
+send "admin\n"
+send "rabbit\n"
+send "reboot\n"
+send "y\n"
+expect "sdfsdf"

@@ -1,0 +1,42 @@
+#!/usr/bin/expect
+#set username dima.z
+#set password pfqwtd
+set username dszajtse
+set password P5p4p3p2p1
+
+set ip [ lindex $argv 0 ]
+set icmp 0
+
+set x 3
+set timeout 1
+while  { "$x" != "0" } {
+spawn /bin/ping $ip -c 1 -W 1
+expect "1 received" {set icmp 1;break}
+incr x -1
+}
+if { "$icmp" == "0"} {send_user "Не доступен $ip\n";exit}
+
+
+set timeout 0
+spawn telnet $ip
+set u 0
+set p 0
+set timeout 0
+while 1 {
+expect {
+"Login:.*" {send "$username\r";incr u +1}
+"login:" {send "$username\r";incr u +1}
+"username:" {send "$username\r";incr u +1}
+"Username:" {send "$username\r";incr u +1}
+"UserName:" {send "$username\r";incr u +1}
+"Password:" {send "$password\r";incr p +1}
+"password:" {send "$password\r";incr p +1}
+"#" {send "\r";break}
+"The max number of VTY users" {send "\r";break}
+">" {send "enable\r"; expect "Password" {send "$password\r";break}}
+}
+if { "$u" == "1" && "$p" == "1" } {set username sadmin; set password ghbitktw}
+if { "$u" == "2" && "$p" == "2" } {set username rabbit; set password rabbit}
+if { "$u" == "5" && "$p" == "5" } {exit 10}
+}
+interact

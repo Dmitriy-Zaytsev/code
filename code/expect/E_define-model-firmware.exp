@@ -1,0 +1,87 @@
+#!/usr/bin/expect
+#log_user 0
+set ip [ lindex $argv 0 ]
+set username dima.z
+set password pfqwtd
+set username2 dszajtse
+set password2 K5k4k3k2k1
+set username3 admin
+set password3 rabbit
+
+set i 0
+set timeout 1
+set time 30
+set match_max 1000
+set send_human {0.01 .00001 1 .000001 5}
+
+spawn telnet $ip
+set u 0
+set p 0
+set timeout 0
+while 1 {
+expect {
+"Login:.*" {send "$username\r";incr u +1}
+"login:" {send "$username\r";incr u +1}
+"username:" {send "$username\r";incr u +1}
+"Username:" {send "$username\r";incr u +1}
+"UserName:" {send "$username\r";incr u +1}
+"Password:" {send "$password\r";incr p +1}
+"password:" {send "$password\r";incr p +1}
+"#" {send "\r";break}
+"The max number of VTY users" {send "\r";break}
+">" {send "enable\r"; expect "Password" {send "$password\r";break}}
+}
+if { "$u" == "1" && "$p" == "1" } {set username $username2; set password $password2}
+if { "$u" == "2" && "$p" == "2" } {set username $username3; set password $password3}
+if { "$u" == "5" && "$p" == "5" } {exit 10}
+}
+set timeout 1
+expect "sdfsdfsdf"
+
+set out $expect_out(buffer)
+send_user "\nBUFFER:\n$out\n:BUFFER\n"
+set ret [regexp -nocase {.*CLI session with the (.*) is opened..*\n} $out str model]
+set ret [regexp -nocase {(.*) Fast Ethernet Switch\n} $out str model]
+if { "$ret" == "0" } {
+send_user "ERROR No define model $ip\n"
+send "exit\n"
+send "logout\n"
+exit 20
+}
+#send_user "\n\n$model\n\n"
+
+send "\n"
+while 1 {expect "#" {send -h "term len 0\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "show version\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+expect "#"
+expect "sdfsdfsdf"
+expect *
+set out $expect_out(buffer)
+#send_user "\nBUFFER:\n$out\n:BUFFER\n"
+set ret [regexp -nocase {Operation Code[[:alnum:][:blank:]]*: *([[:digit:].]*) *} $out str firmware]
+if { "$ret" == "0" } {
+send_user "ERROR No define firmware $ip\n"
+send "exit\n"
+send "logout\n"
+exit 20
+}
+#send_user "\n\n$firmware\n\n"
+
+set ret [regexp -nocase {Loader Version[[:alnum:][:blank:]]*: *([[:digit:].]*)} $out str loader]
+if { "$ret" == "0" } {
+send_user "ERROR No define loader $ip\n"
+send "exit\n"
+send "logout\n"
+exit 20
+}
+#send_user "\n\n$loader\n\n"
+
+
+
+send "\n"
+while 1 {expect "#" {send -h "exit\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+
+expect "sdfsdf"
+send_user "$ip;$model;$firmware;$loader\n"
+
+expect "sdfsdf"

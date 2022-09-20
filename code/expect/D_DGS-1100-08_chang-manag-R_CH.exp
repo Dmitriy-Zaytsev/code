@@ -1,0 +1,89 @@
+#!/usr/bin/expect
+set timeout 1
+set script [ exec /usr/bin/basename "$argv0" ]
+if {[llength $argv] != "3"} {
+send_user "$script ip_old ip_new vlan_manag_new\n$script 172.19.1.13 192.168.5.6 4\n";exit 2}
+
+set username admin
+set password rabbit
+set old_ip [ lindex $argv 0 ]
+set new_ip [ lindex $argv 1 ]
+set mask 26
+set man_vlan [ lindex $argv 2 ]
+set new_gw [exec /usr/bin/ipcalc -n -b $new_ip/$mask | /bin/grep -i HostMin | /usr/bin/cut -d ":" -f 2 | sed "s/ //g"]
+set pc_ip [exec /usr/bin/ipcalc -n -b $new_ip/$mask | /bin/grep -i HostMax | /usr/bin/cut -d ":" -f 2 | sed "s/ //g"]
+
+#send_user "$old_ip $new_ip $new_gw $pc_ip\n"
+
+set var [exec ip add show eth1.10 | sed -n "/$pc_ip/p"]
+if { "$var" == "" } {exec ip add add $pc_ip/$mask dev eth1.10}
+
+set var [exec ip route | sed -n "/$new_ip/p"]
+if { "$var" == "" } {exec ip route add $new_ip dev eth1.10 src $pc_ip}
+
+
+while 1 {
+sleep 1
+spawn /bin/ping $old_ip -c 1 -W 1
+expect "1 received" {break}
+}
+
+spawn telnet $old_ip
+set pid_spawn [exp_pid -i $spawn_id]
+while 1 {
+expect "sername" {send "$username\n"}
+expect "assword" {send "$password\n"}
+expect "admin" {break}
+}
+
+send "\n"
+
+while 1 { expect "admin" {send "create vlan vlanid $man_vlan\n";break}}
+while 1 { expect "admin" {send "config vlan vlanid $man_vlan add tagged 1\n";break}}
+while 1 { expect "admin" {send "config ipif System ipaddress $new_ip/$mask\n";break}}
+expect "sdfsdf"
+exec kill -9 $pid_spawn
+
+
+spawn telnet $new_ip
+set pid_spawn [exp_pid -i $spawn_id]
+while 1 {
+expect "sername" {send "$username\n"}
+expect "assword" {send "$password\n"}
+expect "admin" {break}
+}
+
+send "\n"
+
+while 1 { expect "admin" {send "create iproute default $new_gw\n";break}}
+while 1 { expect "admin" {send "config management vlan $man_vlan\n";break}}
+send "logout\n"
+expect "sdfsdf"
+exec kill -9 $pid_spawn
+
+
+set var [exec ip route | sed -n "/$new_ip/p"]
+if { "$var" != "" } {exec ip route del $new_ip dev eth1.10 src $pc_ip}
+
+
+sleep 3
+
+spawn telnet $new_ip
+set pid_spawn [exp_pid -i $spawn_id]
+while 1 {
+expect "sername" {send "$username\n"}
+expect "assword" {send "$password\n"}
+expect "admin" {break}
+}
+
+send "\n"
+while 1 { expect "admin" {send "delete vlan vlanid 10\n";break}}
+while 1 { expect "admin" {send "show switch\n";break}}
+while 1 { expect "admin" {send "save\n";break}}
+while 1 { expect "admin" {send "logout\n";break}}
+expect "sdfsdf"
+sleep 2
+exec kill -9 $pid_spawn
+
+set var [exec ip add show eth1.10 | sed -n "/$pc_ip/p"]
+if { "$var" != "" } {exec ip add del $pc_ip/$mask dev eth1.10}

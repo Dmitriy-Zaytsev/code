@@ -1,0 +1,131 @@
+#!/usr/bin/expect
+set match_max 1000
+set send_human {0.3 99 0.6 0.1 0.1}
+set u "0"
+set p "0"
+set k "0"
+set l "0"
+
+set username "admin"
+set password "12345"
+set timeout_default 1
+set timeout $timeout_default
+set prompt "(#|PROMPT_1|PROMPT_2)"
+set time_prompt "5000000"
+
+set tty "/dev/ttyS0"
+set file "/home/dima/FiberHome_serial-number.txt"
+#set sw_interface "xgigaethernet 1/1/1"
+set sw_interface "gigaethernet 1/0/1"
+set sw_ip "172.19.1.13/21"
+
+
+set hostname [ lindex $argv 0]
+set location [ lindex $argv 1]
+set accvlan [ lindex $argv 2]
+set ip_mask [ lindex $argv 3]
+
+if { $argc == 0 } {send "SCRIPT \$hostname \$location \$accvlan \$ip/mask\nExample: $argv0 nch-mu01_04_01_1p-acsw1 R010101 401 10.218.50.5/26\n";exit 0}
+if { [string length $hostname] == "0" } {send_user "ERROR: Введите hostname.\n";exit 1}
+if { [string length $location] == "0" } {send_user "ERROR: Введите location.\n";exit 2}
+if { [string length $location] < "3" } {send_user "ERROR: Введите accvlan.\n";exit 3}
+if { [string length $ip_mask] < "13"} {send_user "ERROR: Введите ip/mask.\n";exit 4}
+
+set ret [regexp -nocase {.*/([[:digit:]].)} $ip_mask str mask]
+if { "$ret" == "0" } {send_user "ERROR: Введите маску.\n";exit 10}
+set ipcalc [exec /usr/bin/ipcalc -n -b $ip_mask]
+set ret [regexp -nocase {Netmask:[[:blank:]]*(.*) =.*} $ipcalc str mask_bit]
+if { "$ret" == "0" } {send_user "ERROR: Маска не найдена.\n";exit 20}
+set ret [regexp -nocase {Address:[[:blank:]]* (([[:digit:]]|\.)*)} $ipcalc str ip]
+if { "$ret" == "0" } {send_user "ERROR: Адрес не найден.\n";exit 30}
+set ret [regexp -nocase {HostMin:[[:blank:]]* (([[:digit:]]|\.)*)} $ipcalc str gw]
+if { "$ret" == "0" } {send_user "ERROR: Гэтвей не найден.\n";exit 40}
+
+set append_file [open $file a]
+
+send_user "\t $hostname $location $accvlan"
+
+spawn minicom -D $tty -b 9600
+send "\n"
+while 1 {
+  expect  {
+    -re "Fengine.*#" {send -h "\n";set l 1;send "\n";break}
+    -re "(P|p)assword( *|):" {send -h "$password\n";incr p +1}
+    -re "((U|u)ser(N|n)ame|(L|l)ogin)( *|):" {send -h "$username\n";incr u +1}
+  }
+  incr k +1
+  if { "$k" >= "$time_prompt" } {send_user "ERROR: Не дождался промпта.\n";exit 50}
+  if { "$u" >= "2" && "$p" >= "2" } {send_user "ERROR: Не вышло залогинится.\n";exit 60}
+}
+
+while 1 {expect -re "$prompt" {send -h "show version\r";break}}
+while 1 {expect -re "$prompt" {send -h "show version\r";break}}
+while 1 {expect -re "$prompt" {send -h "show version\r";break}}
+expect "$prompt"
+set out $expect_out(buffer)
+#send_user "\nOUT:\n$out\n:OUT\n"
+set ret [regexp -nocase {Serial Number    : ([[:print:]]*) } $out str serial_number]
+if { "$ret" == "0" } {send_user "ERROR: Не найден serial_number.\n";exit 70}
+
+puts -nonewline $append_file "$hostname;$serial_number;$accvlan\n"
+
+while 1 {expect -re "$prompt" {send -h "config\r";break}}
+while 1 {expect -re "$prompt" {send -h "interface $sw_interface\r";break}}
+while 1 {expect -re "$prompt" {send -h "port link-type trunk\r";break}}
+while 1 {expect -re "$prompt" {send -h "port trunk allow-pass vlan 10\r";break}}
+while 1 {expect -re "$prompt" {send -h "exit\r";break}}
+while 1 {expect -re "$prompt" {send -h "vlan 10\r";break}}
+while 1 {expect -re "$prompt" {send -h "interface vlan 10\r";break}}
+while 1 {expect -re "$prompt" {send -h "ip address $sw_ip\r";break}}
+while 1 {expect -re "$prompt" {send -h "exit\r";break}}
+while 1 {expect -re "$prompt" {send -h "ftp get 172.19.0.102 ftp ftp /F_S4820-52T-X/SX800_M35_OS_V310R220.img 21\r";break}}
+while 1 {expect -re "If you want to update system" {send -h "upgrade os\r";break}}
+while 1 {expect -re "main" {send -h "0\r";break}}
+while 1 {expect -re "Upgrade main image successfully" {send -h "ftp get 172.19.0.102 ftp ftp /F_S4820-52T-X/nch-FH48def_v5.cfg 21\r";break}}
+while 1 {expect -re "If you want to update system" {send -h "upgrade config\r";break}}
+while 1 {expect -re "main" {send -h "0\r";break}}
+while 1 {expect -re "OK" {send -h "exit\r";break}}
+
+
+while 1 {expect -re "$prompt" {send -h "reboot\r";break}}
+while 1 {expect -re "Continue" {send -h "y\r";break}}
+
+
+
+set u 0
+set p 0
+while 1 {
+  expect  {
+    -re "nch-mu00_00_00_0p" {send -h "\n";set l 1;send "\n";break}
+    -re "(P|p)assword( *|):" {send -h "$password\n";incr p +1}
+    -re "((U|u)ser(N|n)ame|(L|l)ogin)( *|):" {send -h "$username\n";incr u +1}
+  }
+  incr k +1
+  if { "$k" >= "$time_prompt" } {exit 50}
+  if { "$u" >= "2" && "$p" >= "2" } {exit 60}
+}
+
+while 1 {expect -re "$prompt" {send -h "config\r";break}}
+while 1 {expect -re "$prompt" {send -h "hostname $hostname\r";break}}
+while 1 {expect -re "$prompt" {send -h "snmp contact NCH-$location\_VL$accvlan\r";break}}
+while 1 {expect -re "$prompt" {send -h "interface gigaethernet 1/0/1 to gigaethernet 1/0/47\r";break}}
+while 1 {expect -re "$prompt" {send -h "no port hybrid vlan 401\r";break}}
+while 1 {expect -re "$prompt" {send -h "port hybrid vlan $accvlan untagged\r";break}}
+while 1 {expect -re "$prompt" {send -h "port hybrid pvid $accvlan\r";break}}
+while 1 {expect -re "$prompt" {send -h "exit\r";break}}
+while 1 {expect -re "$prompt" {send -h "interface vlan 3\r";break}}
+while 1 {expect -re "$prompt" {send -h "ip address $ip $mask_bit\r";break}}
+while 1 {expect -re "$prompt" {send -h "exit\r";break}}
+while 1 {expect -re "$prompt" {send -h "ip route-static 0.0.0.0 0.0.0.0 $gw\r";break}}
+while 1 {expect -re "$prompt" {send -h "exit\r";break}}
+while 1 {expect -re "$prompt" {send -h "write file\r";break}}
+while 1 {expect -re "Are you sure" {send -h "y\r";break}}
+while 1 {expect -re "OK" {send -h "reboot\r";break}}
+while 1 {expect -re "Continue" {send -h "y\r";break}}
+
+
+send_user "\n\t************SUCCESS************\n"
+
+
+expect "$prompt"
+close $append_file

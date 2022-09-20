@@ -1,0 +1,90 @@
+#!/usr/bin/expect
+#При установке нового ES3528M на узлы в НЧ, донастройка со сменой Management Vlan и IP
+#VLANmanagement-10in3.
+#IPaddress-172.19.0.0/21in172.19.64+.0/26
+#Требуется ipcalc.
+send_user "\nscript.exp ocet3.ocet4 pppoevlan mgs location acsw\n"
+send_user   "script.exp    64.13      457      44  14/08-1   1  \n\n"
+
+set username dima.z
+set password pfqwtd
+set new_ip 172.19.[ lindex $argv 0 ]
+set ip_gw [exec /usr/bin/ipcalc -b $new_ip/26 | grep HostMin | sed -E "s/ //g" | cut -d ":" -f 2]
+set vlanPPPOE [ lindex $argv 1 ]
+set mgs [ lindex $argv 2 ]
+set location [exec /bin/echo [ lindex $argv 3 ] | /bin/sed -E "s/\\//_/g"]
+set acsw [ lindex $argv 4 ]
+set hostname nch-mgs$mgs-ou-$location-acsw$acsw
+
+send_user "\nHOSTNAME-$hostname\n"
+send_user "IP-$new_ip  GW-$ip_gw\n"
+send_user "PPPOE_VLAN-$vlanPPPOE\n\n"
+
+set timeout 1
+spawn /bin/ping 172.19.4.254 -c 10
+while 1 {expect "icmp_req*" {expect "icmp_req*" {expect "icmp_req*"; break}}}
+spawn /usr/bin/telnet 172.19.4.254
+while 1 {
+expect "Username:" {send "$username\n"}
+expect "Password:" {send "$password\n"}
+expect "ES3528M" {break}}
+ while 1 {expect "default_ES3528M" {break}}
+send "configure\n"
+ while 1 {expect "(config)" {break}}
+send "reload in minute 1\n"
+send "y\n"
+ while 1 {expect "(config)" {break}}
+send "vlan da\n"
+ while 1 {expect "(config-vlan)" {break}}
+send "vlan 3 name ManagementOU m e s a\n"
+ while 1 {expect "(config-vlan)" {break}}
+send "exit\n"
+ while 1 {expect "(config)" {break}}
+send "interface ethernet 1/25\n"
+ while 1 {expect "(config-if)" {break}}
+send "sw all vla add 3 tagged\n"
+ while 1 {expect "(config-if)" {break}}
+send "interface vlan 3\n"
+ while 1 {expect "(config-if)" {break}}
+send "ip add $new_ip 255.255.255.192 def $ip_gw\n"
+
+expect "sdfsdf"
+spawn /bin/ping $new_ip
+ while 1 {expect "icmp_req*" {expect "icmp_req*" {expect "icmp_req*"; break}}}
+spawn /usr/bin/telnet $new_ip
+while 1 {
+expect "Username:" {send "$username\n"}
+expect "Password:" {send "$password\n"}
+expect "ES3528M" {break}}
+ while 1 {expect "default_ES3528M" {break}}
+send "configure\n"
+ while 1 {expect "(config)" {break}}
+send "hostname $hostname\n"
+ while 1 {expect "(config)" {break}}
+send "prompt $hostname\n"
+ while 1 {expect "(config)" {break}}
+send "inter ether 1/1-24\n"
+ while 1 {expect "(config-if)" {break}}
+send "switch nati vlan $vlanPPPOE\n"
+ while 1 {expect "(config-if)" {break}}
+send "no shutdown\n"
+ while 1 {expect "(config-if)" {break}} 
+send "inter ether 1/25-28\n"
+ while 1 {expect "(config-if)" {break}}
+send "sw all vlan add $vlanPPPOE tag\n"
+ while 1 {expect "(config-if)" {break}}
+send "exit\n"
+ while 1 {expect "(config)" {break}}
+send "reload cancel\n"
+send "y\n"
+ while 1 {expect "(config)" {break}}
+send "exit\n"
+ while 1 {expect "#" {break}}
+ send "copy runn start\n"
+ send "\n"
+ while 1 {expect "Success." {break}}
+
+send_user "\nEnter - продолжить в конфигурационном режиме коммутатора\n"
+while 1 {
+expect_user "\n" {interact;break}
+}

@@ -1,0 +1,42 @@
+#!/usr/bin/expect
+#log_user 0
+set ip [ lindex $argv 0 ]
+set username dszajtse
+set password Y5y4y3y2y1
+#set username dima.z
+#set password pfqwtd
+
+set i 0
+set timeout 0
+set time 30
+set match_max 99999
+set send_human {0.01 .00001 1 .000001 5}
+
+spawn telnet $ip
+set u 0
+set p 0
+set timeout 0
+while 1 {
+expect {
+"Login:.*" {send "$username\r";incr u +1}
+"login:" {send "$username\r";incr u +1}
+"username:" {send "$username\r";incr u +1}
+"Username:" {send "$username\r";incr u +1}
+"UserName:" {send "$username\r";incr u +1}
+"Password:" {send "$password\r";incr p +1}
+"password:" {send "$password\r";incr p +1}
+"#" {send "\r";break}
+">" {send "enable\r"; expect "Password" {send "$password\r";break}}
+}
+if { "$u" == "1" && "$p" == "1" } {set username sadmin; set password ghbitktw}
+if { "$u" == "2" && "$p" == "2" } {set username rabbit; set password rabbit}
+if { "$u" == "5" && "$p" == "5" } {exit 10}
+}
+set timeout 2
+send "\n"
+while 1 {expect "#" {send -h "configure\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "pppoe intermediate-agent\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "exit\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+while 1 {expect "#" {send -h "exit\n";break};if { "$i" >= "$time" } { set i 0;exit 30};incr i +1}
+
+exit 0

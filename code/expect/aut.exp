@@ -1,0 +1,61 @@
+#!/usr/bin/expect
+#set username dima.z
+#set password pfqwtd
+set username dszajtse
+set password Y5y4y3y2y1
+
+set ip [ lindex $argv 0 ]
+set icmp 0
+
+set x 3
+set timeout 1
+while  { "$x" != "0" } {
+spawn /bin/ping $ip -c 1 -W 1
+expect "1 received" {set icmp 1;break}
+incr x -1
+}
+if { "$icmp" == "0"} {send_user "Не доступен $ip\n";exit}
+
+
+set timeout 0.1
+spawn /usr/bin/telnet $ip
+while 1 {
+expect {
+"Login" {send "$username\r"}
+"login" {send "$username\r"}
+"username" {send "$username\r"}
+"Username" {send "$username\r"}
+"UserName" {send "$username\r"}
+"Password" {send "$password\r"}
+"password" {send "$password\r"}
+"#" {break}
+">" {send "enable\n"; expect "Password" {send "$password\n";break}}
+}
+}
+send "\r"
+while 1 {expect "#" {send "configure\r";break}}
+while 1 {expect "#" {send "loopback-detection\r";break}}
+while 1 {expect "#" {send "loopback-detection mode vlan-based\r";break}}
+while 1 {expect "#" {send "exit\r";break}}
+while 1 {expect "#" {send "exit\r";break}}
+
+#while 1 {expect "#" {send "configure\r";break}}
+#while 1 {expect "#" {send "spanning-tree\r";break}}
+#while 1 {expect "#" {send "spanning-tree mode mstp\r";break}}
+#while 1 {expect "#" {send "spanning-tree mst configuration\r";break}}
+#while 1 {expect "#" {send "name Chelny\r";break}}
+#while 1 {expect "#" {send "revision 3\r";break}}
+#while 1 {expect "#" {send "no mst 3 vlan 1-4094\r";break}}
+#while 1 {expect "#" {send "no mst 2 vlan 1-4094\r";break}}
+#while 1 {expect "#" {send "no mst 1 vlan 1-4094\r";break}}
+
+#while 1 {expect "#" {send "lldp\r";break}}
+#while 1 {expect "#" {send "exit\r";break}}
+#while 1 {expect "#" {send "exit\r";break}}
+#while 1 {expect "#" {send "exit\r";break}}
+
+#while 1 {expect "#" {send "term len 0\r";break}}
+#while 1 {expect "#" {send "show span brief\r";break}}
+#while 1 {expect "#" {send "show mst config\r";break}}
+
+interact

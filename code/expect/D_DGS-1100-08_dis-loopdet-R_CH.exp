@@ -1,0 +1,122 @@
+#!/bin/bash
+net=$1
+snmp_comm="ghbitktw"
+file_done="/home/dima/DGS_loopdet/done.log"
+file_noteln="/home/dima/DGS_loopdet/no_teln.log"
+username=admin
+password=rabbit
+
+#Получение ip из указаной подсети.
+ip_net () {
+ipcalc $net | grep -i invalid &>/dev/null && { echo "Не некорректный IP адрес $net." && exit 1;}
+host_min=`(ipcalc -n -b $net | grep -i hostmin | sed -E "s/ {1,99}/ /g" | cut -d  " "  -f 2)`
+host_max=`(ipcalc -n -b $net | grep -i hostmax | sed -E "s/ {1,99}/ /g" | cut -d  " "  -f 2)`
+[ "$host_min" == "" -a "$host_max" == "" ] && \
+{ host_min=`(ipcalc -n -b $net | grep -i address | sed -E "s/ {1,99}/ /g" | cut -d  " "  -f 2)` &&\
+ host_max=$host_min;}
+oct_min=`(echo $host_min | tr '.' '\n')`
+oct_min=($oct_min)
+oct_max=`(echo $host_max | tr '.' '\n')`
+oct_max=($oct_max)
+for oct1 in `seq ${oct_min[0]} ${oct_max[0]}`
+ do
+  for oct2 in `seq ${oct_min[1]} ${oct_max[1]}`
+   do
+    for oct3 in `seq ${oct_min[2]} ${oct_max[2]}`
+     do
+      for oct4 in `seq ${oct_min[3]} ${oct_max[3]}`
+       do
+         ip="$oct1.$oct2.$oct3.$oct4"
+         #Жёлт.
+#         tput setaf 3
+         #Вывод не спускаясь на следующию строку удаляя предидущее.
+#         tput el
+         unset model
+         model=$(snmpget -r 1 -t 2 -c $snmp_comm -v 1 $ip SNMPv2-MIB::sysDescr.0 -Oqv 2>/dev/null)
+         if [[ "$model" = Realtek-Switch. ]] && ! `(grep -E "^$ip$" "$file_done" &>/dev/null)`
+          then
+#           echo -en $ip
+           act || continue
+         fi
+         #Белый.
+#         tput setaf 7
+         #Встаём курсором на позицию ноль.
+#         tput hpa 0
+         #export ip
+       done
+     done
+   done
+ done
+}
+
+
+fun_exp_reboot () {
+echo "REBOOT"
+/usr/bin/expect -c \
+"
+set timeout 1
+send_user \n\nREBOOT\n
+sleep 1
+spawn /usr/bin/telnet $ip
+send "$username"\n
+send "$password"\n
+send reboot\n
+send y\n
+expect "sdfsdf"
+exit 6
+"
+ret=$?
+sleep 10
+#echo RET: $ret
+}
+
+fun_exp_conf () {
+/usr/bin/expect -c \
+"
+set login 0
+set i 1
+set timeout 1
+send_user \n\n$ip\n
+sleep 1
+spawn /usr/bin/telnet $ip
+while { "\$i" != "4" } {
+send_user \n\n\nПопытка\ \$i\n
+expect Username  {send "$username"\n }
+expect Password {send "$password"\n }
+incr i +1
+sleep 2
+send \n\n
+expect admin {set login 1; break}
+}
+
+if { "\$login" == "0"} {exit 11}
+
+sleep 1
+send \n\n
+set timeout 2
+expect admin {send disable\ loopdetect\n }
+expect cess {send save\n}
+expect cess {send logout\n;exit 5}
+set timeout 1
+expect "sdfsdf"
+exit 11
+"
+ret=$?
+}
+
+
+act () {
+nmap -n -p 23  $ip | grep Open -i || echo "$ip" >> "$file_noteln"
+fun_exp_conf
+[ "$ret" = "5" ] && echo "$ip" >> "$file_done"
+if [ "$ret" = "11" ]
+  then
+    fun_exp_reboot
+    [ "$ret" = "6" ] && fun_exp_conf
+    [ "$ret" = "5" ] && echo "$ip" >> "$file_done" || { ! grep -E "^$ip$" "$file_done" && echo "$ip" >> "$file_noteln";}
+fi
+return 1
+}
+
+
+ip_net

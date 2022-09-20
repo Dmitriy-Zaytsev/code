@@ -1,0 +1,38 @@
+#!/usr/bin/expect
+set username dima.z
+set password pfqwtd
+
+set ip [ lindex $argv 0 ]
+
+set timeout 0.1
+spawn /usr/bin/telnet $ip
+while 1 {
+expect {
+"Login" {send "$username\r"}
+"login" {send "$username\r"}
+"username" {send "$username\r"}
+"Username" {send "$username\r"}
+"UserName" {send "$username\r"}
+"Password" {send "$password\r"}
+"password" {send "$password\r"}
+"#" {break}
+">" {send "enable\n"; expect "Password" {send "$password\n";break}}
+}
+}
+set timeout 1
+send "\r"
+send "term len 0\r"
+while 1 { expect "#" {send "show ip route\r";break}}
+while 1 { expect "#" {send "show ip ospf database\r";break}}
+while 1 { expect "#" {send "show ip ospf neighbor\r";break}}
+while 1 { expect "#" {send "show mpls ldp discovery\r";break}}
+while 1 { expect "#" {send "show mpls forwarding\r";break}}
+while 1 { expect "#" {send "show mpls traffic-eng tunnels\r";break}}
+while 1 { expect "#" {send "show mpls traffic-eng topology\r";break}}
+while 1 { expect "#" {send "show ip explicit-paths\r";break}}
+while 1 { expect "#" {send "show xconnect all detail\r";break}}
+while 1 { expect "#" {send "show vfi\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+set timeout 180
+expect "sdfsdfsdf"
+

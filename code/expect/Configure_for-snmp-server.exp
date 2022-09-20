@@ -1,0 +1,194 @@
+#!/usr/bin/expect
+#Для настройки устройст по snmp-server,trapper.
+set username dima.z
+set password pfqwtd
+set ip [ lindex $argv 0 ]
+set ip_server 192.168.33.4
+set timeout 1
+set device null
+set vendor null
+
+spawn /usr/bin/telnet $ip
+while 1 {
+expect {
+"Login" {send "$username\r"}
+"login" {send "$username\r"}
+"username" {"send "$username\r"}
+"Username" {send "$username\r";set vendor ciscolike}
+"Password" {send "$password\r"}
+"password" {send "$password\r"}
+"#" {break}
+">" {send "enable\n"; expect "Password" {send "$password\n";break}}
+}
+}
+
+send_user "\n\n\n++++++++++++++++++\n"
+send_user "VENDOR: $vendor\n"
+send_user "++++++++++++++++++\n"
+
+
+if { $vendor == "ciscolike" } {
+ set i 6000
+ set timeout 0.1
+ send "show vers\r"; #cisco
+ send -- " "; #space
+ send -- " "
+ send -- " "
+ while { $i > 0 } {
+  expect {
+   "ME360x" { set device "ME-3600X-24FS-M";break}
+   "WS-C4500X-16" { set device "WS-C4500X-16";break}
+   "WS-C3750G-24T" { set device "WS-C3750G-24T";break}
+   "WS-C2950T-24" { set device "WS-C2950T-24";break}
+   "WS-C2960G-24TC-L" { set device "WS-C2960G-24TC-L";break}
+  }
+  set i [expr $i - 1 ]
+ }
+ if { $device == "null" } {
+  send "show system\r"; #edge-core
+  send "A\r"
+  set i 6000
+  while { $i > 0 } {
+   expect {
+    "ES3528M" { set device "ES3528M";break}
+    "ECS3510-28T" { set device "ECS3510-28T";break}
+    "ES3552M" { set device "ES3552M";break}
+    "ECS3510-52T" { set device "ECS3510-52T";break}
+   }
+   set i [expr $i - 1 ]
+  }
+ }
+
+ set timeout 1
+}
+
+
+if { $vendor == "null" } {
+ set i 6000
+ set timeout 0.1
+ send "show vers 1\r"
+ send -- " "; #space
+ send -- " "
+ send -- " "
+ while { $i > 0 } {
+  expect {
+   "ES4626-SFP" { set device "ES4626-SFP";break}
+  }
+  set i [expr $i - 1 ]
+ }
+ set timeout 1
+}
+
+send_user "\n\n\n++++++++++++++++++\n"
+send_user "DEVICE: $device\n"
+send_user "++++++++++++++++++\n"
+expect "sdfsdf"
+if { $device == "null" } {send "exit\r";close}
+
+
+# ME-3600X-24FS-M
+if { $device == "ME-3600X-24FS-M" } {
+while 1 { expect "#" {send "conf term\r";break}}
+while 1 { expect "#" {send "access-list 90 60 permit $ip_server\r";break}}
+while 1 { expect "#" {send "no snmp-server enable traps\r";break}}
+while 1 { expect "#" {send "snmp-server enable traps snmp linkup\r";break}}
+while 1 { expect "#" {send "snmp-server enable traps snmp linkdown\r";break}}
+while 1 { expect "#" {send "snmp-server host $ip_server traps version 2c zabbixtrapper snmp\r";break}}
+while 1 { expect "#" {send "snmp-server trap-source loopback 0\r";break}}
+while 1 { expect "#" {send "snmp-server trap link ietf\r";break}}
+while 1 { expect "#" {send "interface range gi 0/1-24\r";break}}
+while 1 { expect "#" {send "snmp trap link-status\r";break}}
+while 1 { expect "#" {send "interface range te 0/1-2\r";break}}
+while 1 { expect "#" {send "snmp trap link-status\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+while 1 { expect "#" {send "cop run st\r";break}}
+while 1 { expect "startup" {send "\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+}
+
+# WS-C4500X-16
+if { $device == "WS-C4500X-16" } {send "exit\r";close}
+
+# WS-C3750G-24T
+if { $device == "WS-C3750G-24T" } {
+while 1 { expect "#" {send "conf term\r";break}}
+while 1 { expect "#" {send "snmp-server enable traps snmp linkup\r";break}}
+while 1 { expect "#" {send "snmp-server enable traps snmp linkdown\r";break}}
+while 1 { expect "#" {send "snmp-server host $ip_server traps version 2c zabbixtrapper snmp\r";break}}
+while 1 { expect "#" {send "snmp-server trap link ietf\r";break}}
+while 1 { expect "#" {send "interface range  gigabitEthernet 1/0/1-24\r";break}}
+while 1 { expect "#" {send "snmp trap link-status\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+while 1 { expect "#" {send "cop run st\r";break}}
+while 1 { expect "startup" {send "\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+close
+}
+
+# WS-C2950T-24
+if { $device == "WS-C2950T-24" } {
+while 1 { expect "#" {send "conf term\r";break}}
+while 1 { expect "#" {send "access-list 12 permit $ip_server\r";break}}
+while 1 { expect "#" {send "no snmp-server enable traps\r";break}}
+while 1 { expect "#" {send "snmp-server enable traps snmp linkup\r";break}}
+while 1 { expect "#" {send "snmp-server enable traps snmp linkdown\r";break}}
+while 1 { expect "#" {send "snmp-server host $ip_server traps version 2c zabbixtrapper snmp\r";break}}
+while 1 { expect "#" {send "snmp-server trap link ietf\r";break}}
+while 1 { expect "#" {send "interface range fastEthernet 0/1 -24\r";break}}
+while 1 { expect "#" {send "snmp trap link-status\r";break}}
+while 1 { expect "#" {send "interf range gig 0/1 -2\r";break}}
+while 1 { expect "#" {send "snmp trap link-status\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+while 1 { expect "#" {send "cop run st\r";break}}
+while 1 { expect "startup" {send "\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+}
+
+# WS-C2960G-24TC-L
+if { $device == "WS-C2960G-24TC-L" } {
+while 1 { expect "#" {send "conf term\r";break}}
+while 1 { expect "#" {send "access-list 12 permit $ip_server\r";break}}
+while 1 { expect "#" {send "no snmp-server enable traps\r";break}}
+while 1 { expect "#" {send "snmp-server enable traps snmp linkup\r";break}}
+while 1 { expect "#" {send "snmp-server enable traps snmp linkdown\r";break}}
+while 1 { expect "#" {send "snmp-server host $ip_server traps version 2c zabbixtrapper snmp\r";break}}
+while 1 { expect "#" {send "snmp-server trap link ietf\r";break}}
+while 1 { expect "#" {send "interface range GigabitEthernet 0/1 -24\r";break}}
+while 1 { expect "#" {send "snmp trap link-status\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+while 1 { expect "#" {send "cop run st\r";break}}
+while 1 { expect "startup" {send "\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+}
+
+
+
+# ES4626-SFP
+if { $device == "ES4626-SFP"} {
+while 1 { expect "#" {send "conf term\r";break}}
+while 1 { expect "#" {send "no snmp-server securityip 192.168.33.12\r";break}}
+while 1 { expect "#" {send "snmp-server securityip 192.168.33.2\r";break}}
+while 1 { expect "#" {send "snmp-server securityip $ip_server\r";break}}
+while 1 { expect "#" {send "snmp-server host $ip_server v2c zabbixtrapper\r";break}}
+while 1 { expect "#" {send "snmp-server enable traps\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+while 1 { expect "#" {send "cop run st\r";break}}
+while 1 { expect "startup" {send "Y\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+}
+
+# ES3528M || ECS3510-28T || ES3552M || ECS3510-52T
+if { $device == "ES3528M" || $device == "ECS3510-28T" || $device == "ES3552M" || $device == "ECS3510-52T" } {
+while 1 { expect "#" {send "configure\r";break}}
+while 1 { expect "#" {send "management snmp-client $ip_server $ip_server\r";break}}
+while 1 { expect "#" {send "snmp-server host $ip_server zabbixtrapper version 2c udp-port 162\r";break}}
+while 1 { expect "#" {send "snmp enable traps link-up-down\r";break}}
+while 1 { expect "#" {send "exit\r";break}}
+while 1 { expect "#" {send "cop run st\r";break}}
+while 1 { expect "Startup" {send "\r";break}}
+while 1 { expect "Success" {send "exit\r";break}}
+}

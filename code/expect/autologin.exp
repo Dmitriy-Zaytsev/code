@@ -1,0 +1,138 @@
+#!/usr/bin/expect
+log_user 1
+#exp_internal 1
+match_max -d 9999
+#tacacs AD MTS
+set username dszajtse
+set password "pfqwtdYTN+"
+#DGS
+set username2 rabbit
+set password2 rabbit
+#tacacs Chelny
+set username3 dima.z
+set password3 pfqwtd
+#local login
+set username4 sadmin
+set password4 "tl;rjht"
+
+set prompt "(#|>)"
+set enable ">"
+
+set send_human {0.3 99 0.6 0.1 0.1}
+
+set timeout 3
+set time 15; #макс.время для ожидания логина
+set u 0; #количество попыток ввести username
+set p 0; #количество попыток ввести password
+set n 0; #сколько времени прождали что бы залогинится
+set time_prompt 30; #макс.время для ожидания prompt,password,enable
+set k 0; #сколько времени прождали ожидая enable и prompt
+set l 0; #говорит о том что prompt дождались
+set s 0; #сколько раз прошли ожидали password,enable,prompt
+set icmp 0
+set telnet 0
+set ssh 0
+set ssh 0
+
+set ip [ lindex $argv 0 ]
+
+log_user 0
+set x 3
+while  { "$x" != "0" } {
+        set PING_PID [spawn /bin/ping $ip -c 1 -W 1]
+        expect "1 received" {set icmp 1;break}
+        exec kill -9 $PING_PID
+        incr x -1
+}
+
+if { "$icmp" == "0"} {send_user "Не отвечает на ICMP $ip\n";exit 5}
+sleep 0.5
+
+set timeout 5
+set NMAP_PID [spawn /usr/bin/nmap -Pn -p T:23 -T3 -n $ip]
+expect "open"  {set telnet 1}
+exec kill -9 $NMAP_PID
+
+set NMAP_PID [spawn /usr/bin/nmap -Pn -p T:22 -T3 -n $ip]
+expect "open"  {set ssh 1}
+exec kill -9 $NMAP_PID
+set timeout 3
+
+if { $telnet == 0 && $ssh == 0 } {send_user "SSH и Telnet закрыты $ip\n";exit 6}
+sleep 0.5
+log_user 1
+
+
+
+if { $ssh == 1 } {
+  while 1 {
+    set SSH_PID [spawn ssh -o StrictHostKeyChecking=no  $username@$ip]
+    incr u +1
+    set s 0
+    while 1 {
+      expect  {
+        "Info: The max number of VTY" {send -h "\n";set l 1;break}
+        "$enable" {send -h "enable\n"; expect -re "(P|p)assword";send -h "$password\n"}
+        -re "$prompt" {send -h "\n";set l 1;break}
+        -re "(P|p)assword( *|):" {send -h "$password\n"; incr p +1; incr s +1}
+
+      }
+      #set expect_out(buffer) {}
+      if { "$s" > 2 } {break}
+      if { "$k" >= "$time_prompt" } {break}
+      incr k +1
+    }
+    if { $l == 1 } {break}
+    if { "$u" == "0" && "$p" == "0" } {send -h "\n"}
+    if { "$u" == "1" && "$p" >= "1" } {set username $username3; set password $password3}
+    if { "$u" == "2" && "$p" >= "2" } {set username $username4; set password $password4}
+    if { "$u" == "3" && "$p" >= "3" } {set username $username2; set password $password2}
+    if { "$u" == "5" && "$p" >= "5" } {exec kill -9 $SSH_PID ;exit 10}
+    if { "$n" >= "$time" } {exec kill -9 $SSH_PID;exit 20}
+    incr n +1
+    if { "$n" >= "$time" } {exec kill -9 $TELNET_PID;exit 20}
+    exec kill -9 $SSH_PID
+  }
+}
+
+if { $telnet == 1 && $ssh == 0 } {
+  while 1 {
+    set TELNET_PID [spawn telnet $ip]
+    set s 0
+    while 1 {
+      send_user "\n\r\t\t\t u:$u p:$p s:$s l:$l \t username:$username password:$password\n\n\n\r"
+      expect  {
+        "Info: The max number of VTY" {send -h "\n";set l 1;break}
+        "$enable" {send -h "enable\n"; expect -re "(P|p)assword";send -h "$password\n"}
+        -re "$prompt" {send -h "\n";set l 1;break}
+        -re "(P|p)assword( *|):" {send -h "$password\n";incr p +1}
+        -re "((U|u)ser(N|n)ame|(L|l)ogin)( *|):" {send -h "$username\n";incr u +1}
+        
+      }
+      #set expect_out(buffer) {}
+      incr s +1
+      #Если мы три раза прокрутили expect в цикле while($s) и так и не встретили prompt($l) т.е. не залогинились, значит мы ввели 2а раза username, значит его нужно уменьшить на один и сново попробовать, но уже с другим username. 
+      if { "$s" >= 3 && $l == 0 } {incr u -1;break};
+      if { "$k" >= "$time_prompt" } {break}
+      incr k +1
+    }
+    if { $l == 1 } {break}
+    if { "$p" == "0" } {send -h "\n"}
+    if { "$u" == "1" && "$p" >= "1" } {set username $username3; set password $password3}
+    if { "$u" == "2" && "$p" >= "2" } {set username $username4; set password $password4}
+    if { "$u" == "3" && "$p" >= "3" } {set username $username2; set password $password2}
+    if { "$u" == "5" && "$p" >= "5" } {exec kill -9 $SSH_PID ;exit 10}
+    if { "$n" >= "$time" } {exec kill -9 $TELNET_PID;exit 20}
+    incr n +1
+    exec kill -9 $TELNET_PID
+  }
+}
+
+set timeout 1
+
+#interact
+#Для DLink-DGS-3200, которым нужно отправлять Ctrl+H(^H) для удаление символа.
+interact {
+ "\177" {send "\010"}
+ "\033\[3~" {send "\010"}
+}
